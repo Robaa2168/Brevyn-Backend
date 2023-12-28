@@ -1,6 +1,7 @@
 //controllers/AuthController.js
 const CharityUser = require('../models/CharityUser');
 const Kyc = require('../models/Kyc');
+const Notification = require('../models/Notification');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
@@ -152,4 +153,45 @@ exports.signupUser = async (req, res) => {
         console.error('Login error', error);
         return res.status(500).json({ message: 'Internal Server Error', error: error.message });
     }
+};
+
+
+exports.changePassword = async (req, res) => {
+  const userId = req.user;
+  const { currentPassword, newPassword } = req.body;
+
+  if (!newPassword || newPassword.trim() === '') {
+      return res.status(400).json({ message: "New password must not be empty." });
+  }
+
+  try {
+      const user = await CharityUser.findById(userId);
+      if (!user) {
+          return res.status(404).json({ message: "User not found." });
+      }
+
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+          return res.status(401).json({ message: "Current password is incorrect." });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      user.password = hashedPassword;
+      await user.save();
+
+       // After successful KYC save, create and save a notification
+       const newNotification = new Notification({
+        user: userId,
+        text: 'Password changed successfully',
+        type: 'Alert',
+    });
+
+    // Save the notification to the database
+    await newNotification.save();
+
+      return res.status(200).json({ message: "Password changed successfully!" });
+  } catch (error) {
+      console.error('Error changing password:', error);
+      return res.status(500).json({ message: "Internal Server Error", error: error.message });
+  }
 };

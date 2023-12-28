@@ -8,6 +8,7 @@ const authMiddleware = require('../middlewares/authMiddleware');
 // Define the signup and login routes
 router.post('/signup', authController.signupUser);
 router.post('/login', authController.loginUser);
+router.post('/change-password', authMiddleware, authController.changePassword);
 
 // Define the submit KYC route with middleware
 router.post('/submit-kyc', authMiddleware, customerController.saveKycData);
