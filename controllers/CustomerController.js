@@ -62,8 +62,18 @@ exports.saveKycData = async (req, res) => {
         // Save the KYC document to the database
         await newKyc.save();
 
+        // After successful KYC save, create and save a notification
+        const newNotification = new Notification({
+            user: userId,
+            text: 'KYC data saved successfully',
+            type: 'Alert',
+        });
+
+        // Save the notification to the database
+        await newNotification.save();
+
         // Send a success response
-        res.status(201).json({ message: "KYC data saved successfully", data: newKyc });
+        res.status(201).json({ message: "KYC data saved successfully", primaryInfo: newKyc });
     } catch (error) {
         // Send an error response
         res.status(500).json({ message: "Failed to save KYC data", error: error.message });
@@ -71,10 +81,63 @@ exports.saveKycData = async (req, res) => {
 };
 
 
+exports.editKycData = async (req, res) => {
+    const updateFields = req.body;
+    const userId = req.user;
+
+    if (!userId) {
+        return res.status(401).json({ message: "Authentication failed. Please login again or provide a valid token." });
+    }
+
+    try {
+        const existingKyc = await Kyc.findOne({ user: userId });
+        if (!existingKyc) {
+            return res.status(404).json({ message: "KYC data not found for this user." });
+        }
+
+        // Prepare the fields to be updated after checking for non-empty values
+        let fieldsToUpdate = {};
+        for (let [key, value] of Object.entries(updateFields)) {
+            let oldValue = existingKyc[key];
+
+            // Check if the new value is different and not empty
+            if (value !== oldValue && value !== null && value !== undefined && value !== '') {
+                fieldsToUpdate[key] = value;
+            }
+        }
+
+        // Check if fieldsToUpdate is empty, meaning no valid changes were provided
+        if (Object.keys(fieldsToUpdate).length === 0) {
+            return res.status(400).json({ message: "No valid update fields provided." });
+        }
+
+        // Apply the updates to the existing document
+        Object.assign(existingKyc, fieldsToUpdate);
+
+        // Save the updated KYC document
+        await existingKyc.save();
+
+        // After successful KYC update, create and save a notification
+        const newNotification = new Notification({
+            user: userId,
+            text: 'KYC data updated successfully',
+            type: 'Alert', // or whatever type is appropriate
+        });
+
+        // Save the notification to the database
+        await newNotification.save();
+
+        // Return success response with updated KYC data
+        return res.status(200).json({ message: "KYC data updated successfully", primaryInfo: existingKyc });
+    } catch (error) {
+        // Send an error response
+        res.status(500).json({ message: "Failed to update KYC data", error: error.message });
+    }
+};
 
 exports.createDonationLink = async (req, res) => {
     const { title, targetAmount, description } = req.body;
-    const userId = req.user; 
+    const userId = req.user;
 
     try {
         // Validate that the user exists and is not banned
@@ -93,36 +156,36 @@ exports.createDonationLink = async (req, res) => {
             return res.status(400).json({ message: "User already has an active donation link" });
         }
 
-          // Proceed with creating a new DonationLink document
-          const uniqueIdentifier = generateUniqueIdentifier();
-          const newDonationLink = new DonationLink({
-              user: userId,
-              title,
-              targetAmount,
-              description,
-              uniqueIdentifier,
-          });
-  
-          // Save the new donation link to the database
-          await newDonationLink.save();
-  
-          // After saving the donation link, create a notification
-          const newNotification = new Notification({
-              user: userId,
-              text: 'Donation link created successfully',
-              type: 'Alert', // or whatever type is appropriate
-          });
-  
-          // Save the notification to the database
-          await newNotification.save();
-  
-          res.status(201).json({
-              message: "Donation link created successfully",
-              link: newDonationLink
-          });
-  
-      } catch (error) {
-          console.error("Error creating donation link: ", error);
-          res.status(500).json({ message: "Internal server error", error: error.message });
-      }
-  };
+        // Proceed with creating a new DonationLink document
+        const uniqueIdentifier = generateUniqueIdentifier();
+        const newDonationLink = new DonationLink({
+            user: userId,
+            title,
+            targetAmount,
+            description,
+            uniqueIdentifier,
+        });
+
+        // Save the new donation link to the database
+        await newDonationLink.save();
+
+        // After saving the donation link, create a notification
+        const newNotification = new Notification({
+            user: userId,
+            text: 'Donation link created successfully',
+            type: 'Alert', // or whatever type is appropriate
+        });
+
+        // Save the notification to the database
+        await newNotification.save();
+
+        res.status(201).json({
+            message: "Donation link created successfully",
+            link: newDonationLink
+        });
+
+    } catch (error) {
+        console.error("Error creating donation link: ", error);
+        res.status(500).json({ message: "Internal server error", error: error.message });
+    }
+};

@@ -1,5 +1,6 @@
 // controllers/NotificationController.js
 const Notification = require('../models/Notification');
+const CharityUser = require('../models/CharityUser');
 
 // Fetch unread notifications for a specific user
 exports.getUnreadNotifications = async (req, res) => {

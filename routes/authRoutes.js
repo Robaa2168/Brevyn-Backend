@@ -11,6 +11,8 @@ router.post('/login', authController.loginUser);
 
 // Define the submit KYC route with middleware
 router.post('/submit-kyc', authMiddleware, customerController.saveKycData);
+router.patch('/edit-kyc', authMiddleware, customerController.editKycData);
+
 router.post('/create-link', authMiddleware, customerController.createDonationLink);
 
 

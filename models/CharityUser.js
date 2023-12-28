@@ -8,18 +8,10 @@ const CharityUserSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
-  firstName: {
-    type: String,
-    required: true,
-  },
-  lastName: {
-    type: String,
-    required: true,
-  },
   profileImage: {
     type: String,
     required: false,
-    default: 'https://example.com/default-image.jpg',
+    default: 'https://example.com/default-image.jpg', // Ensure this URL is replaced with your actual default image path
   },
   email: {
     type: String,
@@ -40,6 +32,24 @@ const CharityUserSchema = new mongoose.Schema({
     unique: true,
     trim: true,
   },
+  // New fields
+  isBanned: {
+    type: Boolean,
+    default: false,
+  },
+  isVerified: {
+    type: Boolean,
+    default: false,
+  },
+  points: {
+    type: Number,
+    default: 0,
+  },
+  balance: {
+    type: Number,
+    default: 0,
+  },
+  // Existing fields that remain unchanged
   otp: {
     type: String,
     required: false,

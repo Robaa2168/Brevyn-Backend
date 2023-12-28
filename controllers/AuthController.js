@@ -57,10 +57,10 @@ exports.signupUser = async (req, res) => {
     }
   
     // Extracting user data from the request body
-    const { email, phoneNumber, password, firstName, lastName, profileImage } = req.body;
+    const { email, phoneNumber, password, profileImage } = req.body;
   
     // Ensure all required fields are provided
-    if (!email || !phoneNumber || !password || !firstName || !lastName) {
+    if (!email || !phoneNumber || !password ) {
       return res.status(400).json({ message: 'Please provide all required fields.' });
     }
   
@@ -90,8 +90,6 @@ exports.signupUser = async (req, res) => {
         email,
         phoneNumber: formattedPhoneNumber,
         password: hashedPassword,
-        firstName,
-        lastName,
         profileImage,
         username,
         referralCode,
@@ -141,13 +139,10 @@ exports.signupUser = async (req, res) => {
         // Generate JWT token
         const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
-        // Prepare user data, including primaryInfo (KYC)
+        // Prepare user data, including all KYC data
         const userData = {
             ...user,
-            primaryInfo: kycData ? {
-                firstName: kycData.firstName,
-                lastName: kycData.lastName,
-            } : null,
+            primaryInfo: kycData || null,
             token,
         };
 
