@@ -21,10 +21,14 @@ function generateUniqueIdentifier() {
 
 
 exports.createDonationLink = async (req, res) => {
-    const { title, targetAmount, description } = req.body;
+    const { title, targetAmount, description, image } = req.body;
     const userId = req.user;
 
     try {
+        // Ensure all required fields are filled out
+        if (!title.trim() || !targetAmount || !description.trim()) {
+            return res.status(400).json({ message: "All fields are required for the donation link." });
+        }
         // Validate that the user exists and is not banned
         const user = await CharityUser.findById(userId);
         if (!user) {
@@ -35,20 +39,28 @@ exports.createDonationLink = async (req, res) => {
             return res.status(403).json({ message: "User is banned from creating donation links" });
         }
 
+        // Sanitize and validate the targetAmount
+        const sanitizedAmount = Number(targetAmount);
+        if (isNaN(sanitizedAmount) || sanitizedAmount < 1000 || sanitizedAmount > 10000) {
+            return res.status(400).json({ message: "Please provide a valid target amount between $1000 and $10000." });
+        }
+
         // Check if the user already has an active donation link
         const existingActiveLink = await DonationLink.findOne({ user: userId, status: 'active' });
         if (existingActiveLink) {
             return res.status(400).json({ message: "User already has an active donation link" });
         }
 
+        const imageData = image ? image : undefined; 
         // Proceed with creating a new DonationLink document
         const uniqueIdentifier = generateUniqueIdentifier();
         const newDonationLink = new DonationLink({
             user: userId,
-            title,
-            targetAmount,
-            description,
+            title: title.trim(),
+            targetAmount: sanitizedAmount,
+            description: description.trim(),
             uniqueIdentifier,
+            image: imageData,
         });
 
         // Save the new donation link to the database
@@ -58,7 +70,7 @@ exports.createDonationLink = async (req, res) => {
         const newNotification = new Notification({
             user: userId,
             text: 'Donation link created successfully',
-            type: 'Alert', // or whatever type is appropriate
+            type: 'Alert',
         });
 
         // Save the notification to the database
@@ -76,8 +88,9 @@ exports.createDonationLink = async (req, res) => {
 };
 
 
+
 exports.getUserDonationLinks = async (req, res) => {
-    const userId = req.user; 
+    const userId = req.user;
 
     try {
         const donationLinks = await DonationLink.find({ user: userId }).sort({ createdAt: -1 }); // Sort by most recent

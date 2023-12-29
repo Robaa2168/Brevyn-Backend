@@ -28,6 +28,11 @@ const donationLinkSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    image: {
+        type: String,
+        required: false,
+        default: 'https://example.com/default-image.jpg'
+    },
     status: {
         type: String,
         enum: ['active', 'completed','inactive', 'cancelled'],
