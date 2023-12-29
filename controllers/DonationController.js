@@ -1,6 +1,7 @@
 
 // controllers/DonationController.js
 const mongoose = require('mongoose');
+const { startSession } = require('mongoose');
 const Kyc = require('../models/Kyc');
 const CharityUser = require('../models/CharityUser');
 const DonationLink = require('../models/donationLink');
@@ -285,64 +286,52 @@ exports.saveDonation = async (req, res) => {
     session.startTransaction();
   
     try {
-      // Ensure no fields are empty (add any other required fields here)
       if (!uniqueIdentifier || !amount || !firstName || !lastName || !type) {
         return res.status(400).json({ message: "All required fields must be provided" });
       }
   
-      // Ensure the donation amount is at least 5
       const numericAmount = parseFloat(amount.trim());
       if (isNaN(numericAmount) || numericAmount < 5) {
-          await session.abortTransaction();
-          session.endSession();
-          return res.status(400).json({ message: "Invalid or insufficient donation amount" });
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({ message: "Invalid or insufficient donation amount" });
       }
-      // Fetch the donor and donation link details using uniqueIdentifier
+  
       const donor = await CharityUser.findById(donorId).session(session);
       const donationLink = await DonationLink.findOne({ uniqueIdentifier }).session(session);
-      
   
-      // Validate donor and donation link
-      if (!donor) {
-        return res.status(404).json({ message: "Donor not found" });
-      }
-      if (!donationLink) {
-        return res.status(404).json({ message: "Donation link not found" });
-      }
-      if (donor.isBanned || donationLink.user.isBanned) {
-        return res.status(403).json({ message: "Donor or link owner is banned" });
-      }
-      if (donationLink.status !== 'active') {
-        return res.status(400).json({ message: "Donation link is not active" });
-      }
-         if (donor.balance < amount) {
-        return res.status(400).json({ message: "Insufficient balance" });
+      if (!donor || !donationLink || donor.isBanned || donationLink.user.isBanned || donationLink.status !== 'active' || donor.balance < numericAmount) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({ message: "Validation failed for donor or donation link" });
       }
   
-        // Update donor's balance and donation link's total donations atomically
-        await CharityUser.findByIdAndUpdate(donorId, { $inc: { balance: -numericAmount } }, { session });
-        await DonationLink.findByIdAndUpdate(donationLink._id, { $inc: { totalDonations: +numericAmount } }, { session });
+      await CharityUser.findByIdAndUpdate(donorId, { $inc: { balance: -numericAmount } }, { session });
+      const updatedDonationLink = await DonationLink.findByIdAndUpdate(donationLink._id, { $inc: { totalDonations: numericAmount } }, { session, new: true });
+  
+      if (updatedDonationLink.totalDonations >= updatedDonationLink.targetAmount) {
+        await DonationLink.findByIdAndUpdate(updatedDonationLink._id, { status: 'completed' }, { session });
         
+        const ownerNotification = new Notification({
+          user: updatedDonationLink.user,
+          text: `Your donation link has reached its target and is now marked as completed.`,
+          type: 'Alert',
+        });
+        await ownerNotification.save();
+      }
   
-      // Create a new donation entry with first name, last name, and type
       const donation = new Donation({
         donor: donorId,
         donationLink: donationLink._id,
-        amount: amount,
+        amount: numericAmount,
         message: note,
         paymentStatus: 'completed',
-        firstName: firstName, // Add first name
-        lastName: lastName,   // Add last name
-        type: type            // Add type
+        firstName: firstName,
+        lastName: lastName,
+        type: type
       });
-  
-      // Save the donation to the database
       await donation.save();
   
-      // Fetching link owner for notification
-      const linkOwner = await CharityUser.findById(donationLink.user).session(session);
-  
-      // Create notifications for both the donor and the donation link owner
       const donorNotification = new Notification({
         user: donorId,
         text: `Thank you ${firstName} ${lastName} for your generous donation of ${amount}!`,
@@ -350,29 +339,62 @@ exports.saveDonation = async (req, res) => {
       });
   
       const ownerNotification = new Notification({
-        user: linkOwner._id,
+        user: updatedDonationLink.user,
         text: `${firstName} ${lastName} has donated ${amount} to your cause!`,
         type: 'Alert',
       });
   
-      // Save notifications to the database
       await donorNotification.save();
       await ownerNotification.save();
   
       await session.commitTransaction();
       session.endSession();
   
-      // Respond back to the client
       res.status(201).json({
         message: "Donation saved successfully",
         donation: donation
       });
     } catch (error) {
       console.error("Error saving donation: ", error);
-  
       await session.abortTransaction();
       session.endSession();
-  
       res.status(500).json({ message: "Internal server error", error: error.message });
     }
   };
+
+  exports.incrementViewCount = async (req, res) => {
+    const { uniqueIdentifier } = req.params;
+    const session = await startSession();
+  
+    try {
+      session.startTransaction();
+  
+      const options = { session, new: true };
+      const donationLink = await DonationLink.findOneAndUpdate(
+        { uniqueIdentifier: uniqueIdentifier },
+        { $inc: { views: 1 } },
+        options
+      );
+  
+      if (!donationLink) {
+        // If no donation link found, abort transaction and return 404
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({ message: "Donation link not found" });
+      }
+  
+      // If everything is okay, commit the transaction
+      await session.commitTransaction();
+      session.endSession();
+      
+      // Respond with the updated view count
+      res.status(200).json({ views: donationLink.views });
+    } catch (error) {
+      // If an error occurs, abort the transaction and log the error
+      await session.abortTransaction();
+      session.endSession();
+      console.error('Error incrementing view count:', error);
+      res.status(500).json({ message: "Internal server error", error });
+    }
+  };
+  

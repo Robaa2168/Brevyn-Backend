@@ -13,6 +13,8 @@ router.get('/donation-link/:id', authMiddleware, donationController.getDonationL
 router.patch('/toggle-status/:id', authMiddleware, donationController.toggleDonationLinkStatus);
 router.patch('/edit-link/:id', authMiddleware, donationController.editDonationLink);
 router.delete('/delete-link/:id', authMiddleware, donationController.deleteDonationLink);
+router.post('/view/:uniqueIdentifier', donationController.incrementViewCount);
+
 
 
 
