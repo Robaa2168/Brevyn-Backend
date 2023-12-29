@@ -14,8 +14,6 @@ router.post('/change-password', authMiddleware, authController.changePassword);
 router.post('/submit-kyc', authMiddleware, customerController.saveKycData);
 router.patch('/edit-kyc', authMiddleware, customerController.editKycData);
 
-router.post('/create-link', authMiddleware, customerController.createDonationLink);
-
 
 // Export the router
 module.exports = router;

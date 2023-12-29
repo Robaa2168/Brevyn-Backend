@@ -44,7 +44,7 @@ exports.getUnreadNotificationCount = async (req, res) => {
 exports.markNotificationAsRead = async (req, res) => {
     try {
         const notificationId = req.params.notificationId;
-        const userId = req.user.id; 
+        const userId = req.user; // Extract user ID from request, set by authMiddleware
 
         // Validate that the user exists
         const user = await CharityUser.findById(userId);

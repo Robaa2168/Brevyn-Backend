@@ -6,18 +6,7 @@ const DonationLink = require('../models/donationLink');
 const Notification = require('../models/Notification');
 
 
-function generateUniqueIdentifier() {
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    const length = 11;
-    let result = '';
 
-    for (let i = 0; i < length; i++) {
-        const randomIndex = Math.floor(Math.random() * characters.length);
-        result += characters[randomIndex];
-    }
-
-    return result;
-}
 
 
 exports.saveKycData = async (req, res) => {
@@ -135,57 +124,3 @@ exports.editKycData = async (req, res) => {
     }
 };
 
-exports.createDonationLink = async (req, res) => {
-    const { title, targetAmount, description } = req.body;
-    const userId = req.user;
-
-    try {
-        // Validate that the user exists and is not banned
-        const user = await CharityUser.findById(userId);
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        if (user.isBanned) {
-            return res.status(403).json({ message: "User is banned from creating donation links" });
-        }
-
-        // Check if the user already has an active donation link
-        const existingActiveLink = await DonationLink.findOne({ user: userId, status: 'active' });
-        if (existingActiveLink) {
-            return res.status(400).json({ message: "User already has an active donation link" });
-        }
-
-        // Proceed with creating a new DonationLink document
-        const uniqueIdentifier = generateUniqueIdentifier();
-        const newDonationLink = new DonationLink({
-            user: userId,
-            title,
-            targetAmount,
-            description,
-            uniqueIdentifier,
-        });
-
-        // Save the new donation link to the database
-        await newDonationLink.save();
-
-        // After saving the donation link, create a notification
-        const newNotification = new Notification({
-            user: userId,
-            text: 'Donation link created successfully',
-            type: 'Alert', // or whatever type is appropriate
-        });
-
-        // Save the notification to the database
-        await newNotification.save();
-
-        res.status(201).json({
-            message: "Donation link created successfully",
-            link: newDonationLink
-        });
-
-    } catch (error) {
-        console.error("Error creating donation link: ", error);
-        res.status(500).json({ message: "Internal server error", error: error.message });
-    }
-};

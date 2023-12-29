@@ -7,6 +7,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const donationRoutes = require('./routes/donationRoutes');
 
 // Initialize express app
 const app = express();
@@ -26,6 +27,7 @@ mongoose.connect('mongodb+srv://robaa40:Lahaja40@cluster0.q02nnfd.mongodb.net/my
 
 app.use('/api/auth', authRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/donations', donationRoutes);
 app.get('/', (req, res) => res.send('Hello World with MERN!'));
 
 
