@@ -1,9 +1,11 @@
 
 // controllers/DonationController.js
+const mongoose = require('mongoose');
 const Kyc = require('../models/Kyc');
 const CharityUser = require('../models/CharityUser');
 const DonationLink = require('../models/donationLink');
 const Notification = require('../models/Notification');
+const Donation = require('../models/donations');
 
 
 function generateUniqueIdentifier() {
@@ -114,12 +116,28 @@ exports.getDonationLinkById = async (req, res) => {
             return res.status(404).json({ message: "Donation link not found" });
         }
 
-        // Optionally, you can perform additional checks here, such as checking if the user has permission to view the link.
-
         res.status(200).json(donationLink);
     } catch (error) {
         console.error("Error fetching donation link data: ", error);
         res.status(500).json({ message: "Internal server error", error: error.message });
+    }
+};
+
+exports.getDonationLinkByUniqueIdentifier = async (req, res) => {
+    const uniqueIdentifier = req.params.uniqueIdentifier;
+
+    try {
+        // Find the donation link by its unique identifier
+        const donationLink = await DonationLink.findOne({ uniqueIdentifier });
+
+        if (!donationLink) {
+            return res.status(404).json({ message: 'Donation link not found' });
+        }
+
+        res.status(200).json(donationLink);
+    } catch (error) {
+        console.error('Error fetching donation link data: ', error);
+        res.status(500).json({ message: 'Internal server error', error: error.message });
     }
 };
 
@@ -255,3 +273,106 @@ exports.deleteDonationLink = async (req, res) => {
         res.status(500).json({ message: "Internal server error", error: error.message });
     }
 };
+
+
+
+
+exports.saveDonation = async (req, res) => {
+    const { uniqueIdentifier, amount, firstName, lastName, note, type } = req.body;
+    const donorId = req.user;
+  
+    const session = await mongoose.startSession();
+    session.startTransaction();
+  
+    try {
+      // Ensure no fields are empty (add any other required fields here)
+      if (!uniqueIdentifier || !amount || !firstName || !lastName || !type) {
+        return res.status(400).json({ message: "All required fields must be provided" });
+      }
+  
+      // Ensure the donation amount is at least 5
+      const numericAmount = parseFloat(amount.trim());
+      if (isNaN(numericAmount) || numericAmount < 5) {
+          await session.abortTransaction();
+          session.endSession();
+          return res.status(400).json({ message: "Invalid or insufficient donation amount" });
+      }
+      // Fetch the donor and donation link details using uniqueIdentifier
+      const donor = await CharityUser.findById(donorId).session(session);
+      const donationLink = await DonationLink.findOne({ uniqueIdentifier }).session(session);
+      
+  
+      // Validate donor and donation link
+      if (!donor) {
+        return res.status(404).json({ message: "Donor not found" });
+      }
+      if (!donationLink) {
+        return res.status(404).json({ message: "Donation link not found" });
+      }
+      if (donor.isBanned || donationLink.user.isBanned) {
+        return res.status(403).json({ message: "Donor or link owner is banned" });
+      }
+      if (donationLink.status !== 'active') {
+        return res.status(400).json({ message: "Donation link is not active" });
+      }
+         if (donor.balance < amount) {
+        return res.status(400).json({ message: "Insufficient balance" });
+      }
+  
+        // Update donor's balance and donation link's total donations atomically
+        await CharityUser.findByIdAndUpdate(donorId, { $inc: { balance: -numericAmount } }, { session });
+        await DonationLink.findByIdAndUpdate(donationLink._id, { $inc: { totalDonations: +numericAmount } }, { session });
+        
+  
+      // Create a new donation entry with first name, last name, and type
+      const donation = new Donation({
+        donor: donorId,
+        donationLink: donationLink._id,
+        amount: amount,
+        message: note,
+        paymentStatus: 'completed',
+        firstName: firstName, // Add first name
+        lastName: lastName,   // Add last name
+        type: type            // Add type
+      });
+  
+      // Save the donation to the database
+      await donation.save();
+  
+      // Fetching link owner for notification
+      const linkOwner = await CharityUser.findById(donationLink.user).session(session);
+  
+      // Create notifications for both the donor and the donation link owner
+      const donorNotification = new Notification({
+        user: donorId,
+        text: `Thank you ${firstName} ${lastName} for your generous donation of ${amount}!`,
+        type: 'Alert',
+      });
+  
+      const ownerNotification = new Notification({
+        user: linkOwner._id,
+        text: `${firstName} ${lastName} has donated ${amount} to your cause!`,
+        type: 'Alert',
+      });
+  
+      // Save notifications to the database
+      await donorNotification.save();
+      await ownerNotification.save();
+  
+      await session.commitTransaction();
+      session.endSession();
+  
+      // Respond back to the client
+      res.status(201).json({
+        message: "Donation saved successfully",
+        donation: donation
+      });
+    } catch (error) {
+      console.error("Error saving donation: ", error);
+  
+      await session.abortTransaction();
+      session.endSession();
+  
+      res.status(500).json({ message: "Internal server error", error: error.message });
+    }
+  };

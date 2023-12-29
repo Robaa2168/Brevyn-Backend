@@ -7,6 +7,8 @@ const authMiddleware = require('../middlewares/authMiddleware');
 
 router.post('/create-link', authMiddleware, donationController.createDonationLink);
 router.get('/user-links', authMiddleware, donationController.getUserDonationLinks);
+router.get('/donate/:uniqueIdentifier', donationController.getDonationLinkByUniqueIdentifier);
+router.post('/donation-payment',authMiddleware, donationController.saveDonation);
 router.get('/donation-link/:id', authMiddleware, donationController.getDonationLinkById);
 router.patch('/toggle-status/:id', authMiddleware, donationController.toggleDonationLinkStatus);
 router.patch('/edit-link/:id', authMiddleware, donationController.editDonationLink);
