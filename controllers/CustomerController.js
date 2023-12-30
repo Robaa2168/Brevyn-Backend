@@ -11,7 +11,7 @@ const Notification = require('../models/Notification');
 
 exports.saveKycData = async (req, res) => {
     const { firstName, lastName, phone, email, dob, idNumber, town, country } = req.body;
-    const userId = req.user; // Assuming userID is stored in req.user by the authMiddleware
+    const userId = req.user; 
 
     if (!userId) {
         return res.status(401).json({ message: "Authentication failed. Please login again or provide a valid token." });

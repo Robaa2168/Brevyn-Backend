@@ -8,6 +8,8 @@ const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const donationRoutes = require('./routes/donationRoutes');
+const impactRoutes = require('./routes/impactRoutes');
+const commentRoutes = require('./routes/commentRoutes');
 
 // Initialize express app
 const app = express();
@@ -28,6 +30,8 @@ mongoose.connect('mongodb+srv://robaa40:Lahaja40@cluster0.q02nnfd.mongodb.net/my
 app.use('/api/auth', authRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/donations', donationRoutes);
+app.use('/api/impacts', impactRoutes);
+app.use('/api/comments', commentRoutes);
 app.get('/', (req, res) => res.send('Hello World with MERN!'));
 
 
