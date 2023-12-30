@@ -41,14 +41,46 @@ exports.createImpact = async (req, res) => {
 
 
 exports.getImpacts = async (req, res) => {
+    const currentUserId = req.user ? req.user : null;
+
     try {
         const impacts = await Impact.find({});
-        res.status(200).json(impacts);
+
+        // Fetch comment count for each impact
+        const commentCounts = await Promise.all(impacts.map(async (impact) => {
+            const count = await Comment.countDocuments({ impact: impact._id });
+            return { impactId: impact._id.toString(), count };
+        }));
+
+        // Fetch likes for the current user related to the impacts, if logged in
+        let likedImpactIds = new Set();
+        if (currentUserId) {
+            const userLikes = await Like.find({
+                user: currentUserId,
+                impact: { $in: impacts.map(impact => impact._id) }
+            });
+            likedImpactIds = new Set(userLikes.map(like => like.impact.toString()));
+        }
+
+        // Combine impacts with their comment counts and liked status
+        const impactsWithCommentCountsAndLikes = impacts.map(impact => {
+            const commentCount = commentCounts.find(c => c.impactId === impact._id.toString())?.count || 0;
+            return {
+                ...impact.toObject(),
+                commentCount,
+                userHasLiked: likedImpactIds.has(impact._id.toString())
+            };
+        });
+
+        res.status(200).json(impactsWithCommentCountsAndLikes);
     } catch (error) {
         console.error("Error fetching impacts: ", error);
         res.status(500).json({ message: "Internal server error", error: error.message });
     }
 };
+
+
+
 
 
 exports.toggleLike = async (req, res) => {
