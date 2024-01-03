@@ -96,7 +96,7 @@ exports.getUserDonationLinks = async (req, res) => {
     const userId = req.user;
 
     try {
-        const donationLinks = await DonationLink.find({ user: userId }).sort({ createdAt: -1 }); // Sort by most recent
+        const donationLinks = await DonationLink.find({ user: userId }).sort({ createdAt: -1 });
 
         res.status(200).json(donationLinks);
     } catch (error) {
@@ -322,6 +322,7 @@ exports.saveDonation = async (req, res) => {
   
       const donation = new Donation({
         donor: donorId,
+        recipient: updatedDonationLink.user, 
         donationLink: donationLink._id,
         amount: numericAmount,
         message: note,
@@ -398,3 +399,18 @@ exports.saveDonation = async (req, res) => {
     }
   };
   
+
+  exports.getUserDonations = async (req, res) => {
+    const userId = req.user;
+
+    try {
+        const donations = await Donation.find({ recipient: userId })
+                                        .sort({ date: -1 })
+                                        .limit(10);
+
+        res.status(200).json(donations);
+    } catch (error) {
+        console.error("Error fetching donations: ", error);
+        res.status(500).json({ message: "Internal server error", error: error.message });
+    }
+};

@@ -14,6 +14,8 @@ router.patch('/toggle-status/:id', authMiddleware, donationController.toggleDona
 router.patch('/edit-link/:id', authMiddleware, donationController.editDonationLink);
 router.delete('/delete-link/:id', authMiddleware, donationController.deleteDonationLink);
 router.post('/view/:uniqueIdentifier', donationController.incrementViewCount);
+router.get('/user-donations', authMiddleware, donationController.getUserDonations);
+
 
 
 

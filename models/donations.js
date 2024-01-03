@@ -10,6 +10,11 @@ const donationSchema = new mongoose.Schema({
         ref: 'CharityUser',
         required: true,
     },
+    recipient: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'CharityUser',
+        required: true,
+    },
     donationLink: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'DonationLink',

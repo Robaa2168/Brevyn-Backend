@@ -41,6 +41,10 @@ const CharityUserSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  isPremium: {
+    type: Boolean,
+    default: false,
+  },
   points: {
     type: Number,
     default: 0,
