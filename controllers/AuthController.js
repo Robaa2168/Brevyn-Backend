@@ -195,12 +195,26 @@ exports.signupUser = async (req, res) => {
         const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
         // Prepare user data, including all KYC data
-        const userData = {
-            ...user,
+     const userData = {
+            _id: user._id,
+            username: user.username,
+            profileImage: user.profileImage,
+            email: user.email,
+            role: user.role,
+            phoneNumber: user.phoneNumber,
+            isBanned: user.isBanned,
+            isVerified: user.isVerified,
+            points: user.points,
+            balance: user.balance,
+            otp: user.otp,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt,
+            isPremium: user.isPremium,
             primaryInfo: kycData || null,
             token,
         };
 
+        console.log(userData)
         // Send back token and user data to the client
         return res.status(200).json(userData);
     } catch (error) {
@@ -208,6 +222,7 @@ exports.signupUser = async (req, res) => {
         return res.status(500).json({ message: 'Internal Server Error', error: error.message });
     }
 };
+
 
 
 

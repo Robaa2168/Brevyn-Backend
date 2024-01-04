@@ -1,6 +1,7 @@
 // index.js
 
 require('dotenv').config();
+require('./cronJobs/expireTrades'); 
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
@@ -10,6 +11,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const donationRoutes = require('./routes/donationRoutes');
 const impactRoutes = require('./routes/impactRoutes');
 const commentRoutes = require('./routes/commentRoutes');
+const tradeRoutes = require('./routes/tradeRoutes');
 
 // Initialize express app
 const app = express();
@@ -32,6 +34,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/donations', donationRoutes);
 app.use('/api/impacts', impactRoutes);
 app.use('/api/comments', commentRoutes);
+app.use('/api/trade', tradeRoutes);
 app.get('/', (req, res) => res.send('Hello World with MERN!'));
 
 

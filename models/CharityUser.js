@@ -11,7 +11,7 @@ const CharityUserSchema = new mongoose.Schema({
   profileImage: {
     type: String,
     required: false,
-    default: 'https://example.com/default-image.jpg',
+    default: 'https://example.com/default-image.jpg', 
   },
   email: {
     type: String,
