@@ -11,7 +11,7 @@ const CharityUserSchema = new mongoose.Schema({
   profileImage: {
     type: String,
     required: false,
-    default: 'https://example.com/default-image.jpg', // Ensure this URL is replaced with your actual default image path
+    default: 'https://example.com/default-image.jpg',
   },
   email: {
     type: String,
@@ -53,7 +53,6 @@ const CharityUserSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
-  // Existing fields that remain unchanged
   otp: {
     type: String,
     required: false,

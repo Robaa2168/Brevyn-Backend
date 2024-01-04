@@ -15,5 +15,18 @@ router.post('/submit-kyc', authMiddleware, customerController.saveKycData);
 router.patch('/edit-kyc', authMiddleware, customerController.editKycData);
 
 
+router.post('/forgot-password', authController.forgotPassword);
+
+// Define the route for verifying reset password code
+router.post('/verify-code', authController.verifyResetCode);
+
+// Define the reset password route
+router.post('/reset-password', authController.resetPassword);
+
+// Define the route for resending verification code
+router.post('/resend-verification-code', authController.resendVerificationCode);
+
+
+
 // Export the router
 module.exports = router;

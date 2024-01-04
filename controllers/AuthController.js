@@ -6,6 +6,30 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const jwt = require('jsonwebtoken');
+const nodemailer = require("nodemailer");
+
+
+
+async function sendResetPasswordEmail(recipientEmail, resetCode) {
+  let transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+          user: 'flortieno@gmail.com',
+          pass: 'jxcsapcnfcshtfmy',
+      },
+  });
+
+  let info = await transporter.sendMail({
+      from: '"BREVYN FOUNDATION" <flortieno@gmail.com>',
+      to: recipientEmail,
+      subject: "Reset Your Password",
+      text: `Your password reset code is: ${resetCode}`,
+  });
+
+  console.log("Message sent: %s", info.messageId);
+}
 
 
 // Utility functions to generate unique information for the user
@@ -39,11 +63,11 @@ const formatPhoneNumber = (phoneNumber) => {
       return phoneNumber.slice(1); // remove the '+' prefix
     }
     else if (phoneNumber.startsWith("254")) {
-      return phoneNumber; // format is already correct
+      return phoneNumber; 
     } else if (phoneNumber.startsWith("0")) {
-      return `254${phoneNumber.slice(1)}`; // replace leading 0 with country code
+      return `254${phoneNumber.slice(1)}`;
     } else if (phoneNumber.startsWith("7") || phoneNumber.startsWith("1")) {
-      return `254${phoneNumber}`; // add country code prefix
+      return `254${phoneNumber}`; 
     } else {
       return phoneNumber;
     }
@@ -179,7 +203,6 @@ exports.changePassword = async (req, res) => {
       user.password = hashedPassword;
       await user.save();
 
-       // After successful KYC save, create and save a notification
        const newNotification = new Notification({
         user: userId,
         text: 'Password changed successfully',
@@ -193,5 +216,115 @@ exports.changePassword = async (req, res) => {
   } catch (error) {
       console.error('Error changing password:', error);
       return res.status(500).json({ message: "Internal Server Error", error: error.message });
+  }
+};
+
+
+
+exports.forgotPassword = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+      const user = await CharityUser.findOne({ email });
+      if (!user) {
+          return res.status(404).json({ message: 'User not found with this email' });
+      }
+
+      // Check if a reset code already exists and use it, otherwise generate a new one
+      let resetCode = user.otp;
+      if (!resetCode) {
+          resetCode = generateOtp(); // Generate a secure token or code
+          user.otp = resetCode;
+          await user.save();
+      }
+
+      // Send the code via email (implement email sending)
+      sendResetPasswordEmail(user.email, resetCode);
+
+      return res.status(200).json({ message: 'A verification code has been sent to your email' });
+  } catch (error) {
+      console.error('Forgot password error:', error);
+      return res.status(500).json({ message: 'Internal Server Error', error: error.message });
+  }
+};
+
+
+exports.verifyResetCode = async (req, res) => {
+  const { email, code } = req.body;
+
+  try {
+      const user = await CharityUser.findOne({ email });
+      if (!user || user.otp !== code) { // Check if user exists and code matches
+          return res.status(400).json({ message: 'Verification failed. Invalid code or email.' });
+      }
+
+      // Code is valid, generate and save new code for next time
+      user.otp = generateOtp();
+      await user.save();
+
+      return res.status(200).json({ message: 'Verification successful', verified: true });
+  } catch (error) {
+      console.error('Verify code error:', error);
+      return res.status(500).json({ message: 'Internal Server Error', error: error.message });
+  }
+};
+
+
+exports.resetPassword = async (req, res) => {
+  const { email, newPassword } = req.body;
+
+  try {
+      const user = await CharityUser.findOne({ email });
+      if (!user) {
+          return res.status(400).json({ message: 'User not found.' });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      user.password = hashedPassword;
+      await user.save();
+
+      // After successful password reset, create and save a notification
+      const newNotification = new Notification({
+          user: user._id,
+          text: 'Password changed successfully',
+          type: 'Alert',
+      });
+
+      // Save the notification to the database
+      await newNotification.save();
+
+      // Send a success response
+      return res.status(200).json({ message: 'Password has been reset successfully' });
+  } catch (error) {
+      console.error('Reset password error:', error);
+      return res.status(500).json({ message: 'Internal Server Error', error: error.message });
+  }
+};
+
+
+
+
+// Function to resend the verification code
+exports.resendVerificationCode = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+      const user = await CharityUser.findOne({ email });
+      if (!user) {
+          return res.status(404).json({ message: 'User not found with this email' });
+      }
+
+      // Generate a new reset code and save it
+      const newResetCode = generateOtp(); // Generate a secure token or code
+      user.otp = newResetCode; // Set the new code to the user
+      await user.save(); // Save the user with the new code
+
+      // Send the new code via email
+      await sendResetPasswordEmail(user.email, newResetCode);
+
+      return res.status(200).json({ message: 'A new verification code has been sent to your email' });
+  } catch (error) {
+      console.error('Resend verification code error:', error);
+      return res.status(500).json({ message: 'Internal Server Error', error: error.message });
   }
 };
