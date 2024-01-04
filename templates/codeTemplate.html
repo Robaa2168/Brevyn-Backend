@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        color: #333;
+        line-height: 1.6;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #ffffff;
+        border: 1px solid #ddd;
+        border-radius: 7px;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        text-align: center;
+        color: #fff;
+        margin-bottom: 20px;
+        background-image: url("https://cdn.aarp.net/content/dam/aarp/money/scams_fraud/2022/05/1140-charity.jpg");
+        background-size: cover;
+        background-position: center;
+        padding: 40px 20px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .header::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        background: rgba(
+          0,
+          0,
+          0,
+          0.5
+        ); /* Adjust the color and opacity to ensure text visibility */
+        z-index: 1;
+      }
+
+      .header h2 {
+        position: relative;
+        z-index: 2;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5); /* Optional text shadow for better readability */
+      }
+
+      .content {
+        padding: 20px;
+        background-color: #f9f9f9;
+        border-radius: 5px;
+      }
+      .footer {
+        font-size: 12px;
+        text-align: center;
+        margin-top: 20px;
+        color: #888;
+      }
+      .footer a {
+        text-decoration: none;
+        color: #006837;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>.</h2>
+      </div>
+      <div class="content">
+        <p>{{greeting}}</p>
+        <p>{{message}}</p>
+        <p><strong>{{code}}</strong></p>
+        <p>
+          If you did not request this, please ignore this email or contact
+          support if you have concerns.
+        </p>
+      </div>
+      <div class="footer">
+        <p>
+          VerdantCharity | Apt. 933 518 Lashell Rue, North Bernieville, NY
+          00961-9795
+        </p>
+        <p>
+          <a href="https://verdantcharity.com">verdantcharity.com</a> |
+          <a href="mailto:support@verdantcharity.com"
+            >support@verdantcharity.com</a
+          >
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

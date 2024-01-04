@@ -6,26 +6,38 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const jwt = require('jsonwebtoken');
-const nodemailer = require("nodemailer");
+const fs = require('fs');
+const path = require('path');
+const nodemailer = require('nodemailer');
 
 
 
-async function sendResetPasswordEmail(recipientEmail, resetCode) {
+async function sendEmail(recipientEmail, subject, greeting, message, code) {
+  // Read the HTML file
+  const templatePath = path.join(__dirname, '..', 'templates', 'codeTemplate.html');
+  let htmlContent = fs.readFileSync(templatePath, 'utf8');
+
+  // Replace placeholders with actual data
+  htmlContent = htmlContent.replace('{{greeting}}', greeting)
+                           .replace('{{message}}', message)
+                           .replace('{{code}}', code);
+
   let transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
+      host: "smtp.gmail.com",
       port: 587,
       secure: false,
       auth: {
-          user: 'flortieno@gmail.com',
-          pass: 'jxcsapcnfcshtfmy',
+          user: 'flortieno@gmail.com', // Your real email here
+          pass: 'jxcsapcnfcshtfmy', // Your real password here
       },
   });
 
   let info = await transporter.sendMail({
-      from: '"BREVYN FOUNDATION" <flortieno@gmail.com>',
+      from: '"VERDANT CHARITY" <flortieno@gmail.com>',
       to: recipientEmail,
-      subject: "Reset Your Password",
-      text: `Your password reset code is: ${resetCode}`,
+      subject: subject,
+      text: `${greeting}\n\n${message}\n\nCode: ${code}`,
+      html: htmlContent,
   });
 
   console.log("Message sent: %s", info.messageId);
@@ -147,7 +159,7 @@ exports.signupUser = async (req, res) => {
     const { email, password } = req.body;
 
     try {
-        const user = await CharityUser.findOne({ email }).lean();
+        const user = await CharityUser.findOne({ email });
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
@@ -156,6 +168,24 @@ exports.signupUser = async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(400).json({ message: 'Invalid credentials' });
+        }
+
+        // Check if user is verified
+        if (!user.isVerified) {
+            const newVerificationCode = generateOtp();
+            user.otp = newVerificationCode;
+            await user.save();
+
+            // Prepare email content
+            const subject = "Verification Needed";
+            const greeting = "Hello,";
+            const message = "Please verify your email to continue by entering the following code:";
+
+            // Send the verification email
+            await sendEmail(user.email, subject, greeting, message, newVerificationCode);
+
+            // Inform the client that verification is needed
+            return res.status(403).json({ message: 'Verification needed. Please check your email for the verification code.' });
         }
 
         // Fetch user's KYC data
@@ -178,6 +208,7 @@ exports.signupUser = async (req, res) => {
         return res.status(500).json({ message: 'Internal Server Error', error: error.message });
     }
 };
+
 
 
 exports.changePassword = async (req, res) => {
@@ -220,6 +251,42 @@ exports.changePassword = async (req, res) => {
 };
 
 
+exports.verifyFirstTimeUser = async (req, res) => {
+  const { email, verificationCode } = req.body;
+
+  try {
+      const user = await CharityUser.findOne({ email });
+      if (!user) {
+          return res.status(404).json({ message: 'User not found.' });
+      }
+
+      // Check if the provided verification code matches the one saved in the user's document
+      if (!user || user.otp !== verificationCode)  {
+          return res.status(400).json({ message: 'Invalid or expired verification code.' });
+      }
+
+      user.isVerified = true;
+      newCode = generateOtp(); 
+      user.otp = newCode;
+      await user.save();
+
+      // After successful verification, create and save a notification
+      const newNotification = new Notification({
+          user: user._id,
+          text: 'Your account has been successfully verified.',
+          type: 'Alert',
+      });
+
+      await newNotification.save();
+
+      return res.status(200).json({ message: 'Account verified successfully' });
+  } catch (error) {
+      console.error('First time user verification error:', error);
+      return res.status(500).json({ message: 'Internal Server Error', error: error.message });
+  }
+};
+
+
 
 exports.forgotPassword = async (req, res) => {
   const { email } = req.body;
@@ -238,8 +305,13 @@ exports.forgotPassword = async (req, res) => {
           await user.save();
       }
 
-      // Send the code via email (implement email sending)
-      sendResetPasswordEmail(user.email, resetCode);
+      // Prepare email content
+      const subject = "Verification Code";
+      const greeting = "Dear user,";
+      const message = "Please use the following code to proceed with resetting your password:";
+
+      // Send the code via email
+      await sendEmail(user.email, subject, greeting, message, resetCode);
 
       return res.status(200).json({ message: 'A verification code has been sent to your email' });
   } catch (error) {
@@ -313,14 +385,17 @@ exports.resendVerificationCode = async (req, res) => {
       if (!user) {
           return res.status(404).json({ message: 'User not found with this email' });
       }
+      const newResetCode = generateOtp();
+      user.otp = newResetCode;
+      await user.save();
 
-      // Generate a new reset code and save it
-      const newResetCode = generateOtp(); // Generate a secure token or code
-      user.otp = newResetCode; // Set the new code to the user
-      await user.save(); // Save the user with the new code
+      // Prepare email content
+      const subject = "Resend Verification Code";
+      const greeting = "Hello,";
+      const message = "You have requested to resend your verification code. Please use the following code:";
 
       // Send the new code via email
-      await sendResetPasswordEmail(user.email, newResetCode);
+      await sendEmail(user.email, subject, greeting, message, newResetCode);
 
       return res.status(200).json({ message: 'A new verification code has been sent to your email' });
   } catch (error) {
