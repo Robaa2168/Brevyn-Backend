@@ -2,8 +2,37 @@
 
 const mongoose = require('mongoose');
 const Trade = require('../models/trade');
+const Kyc = require('../models/Kyc');
 const { v4: uuidv4 } = require('uuid');
 const CharityUser = require('../models/CharityUser');
+const nodemailer = require('nodemailer');
+const fs = require('fs');
+const path = require('path');
+
+async function sendEmail({ toEmail, subject, textContent, htmlContent }) {
+
+    let transporter = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 587,
+        secure: false,
+        auth: {
+            user: 'flortieno@gmail.com',
+            pass: 'jxcsapcnfcshtfmy',
+        },
+    });
+
+    let info = await transporter.sendMail({
+        from: '"Verdant Charity" <flortieno@gmail.com>',
+        to: toEmail,
+        subject: subject,
+        text: textContent,
+        html: htmlContent,
+    });
+
+    console.log("Message sent: %s", info.messageId);
+    return info;
+}
+
 
 exports.startTrade = async (req, res) => {
     const { amount, points } = req.body;
@@ -17,6 +46,12 @@ exports.startTrade = async (req, res) => {
         const user = await CharityUser.findById(userId);
         if (user.isBanned) {
             return res.status(403).json({ message: "User is banned and cannot start a trade." });
+        }
+
+        // Check if user has completed KYC
+        const userKyc = await Kyc.findOne({ user: userId });
+        if (!userKyc || !userKyc.firstName || !userKyc.lastName) {
+            return res.status(403).json({ message: "Please complete filling your information before starting a trade." });
         }
 
         const session = await mongoose.startSession();
@@ -67,6 +102,7 @@ exports.startTrade = async (req, res) => {
 
 
 
+
 exports.getTradeDetails = async (req, res) => {
     const { tradeId } = req.params;
 
@@ -108,22 +144,34 @@ exports.confirmPayment = async (req, res) => {
     const { tradeId } = req.body;
 
     try {
-        const trade = await Trade.findOneAndUpdate(
-            { tradeId },
-            { status: 'paid' },
-            { new: true }
-        );
+        // Find the trade without updating it first
+        const trade = await Trade.findOne({ tradeId });
 
+        // Check if trade exists
         if (!trade) {
             return res.status(404).json({ message: "Trade not found." });
         }
 
-        res.status(200).json(trade);
+        // Check if trade is active and not expired
+        const currentTime = new Date();
+        if(trade.status !== 'active' || trade.expiresAt < currentTime) {
+            return res.status(400).json({ message: "Trade is not active or already expired." });
+        }
+
+        // If trade is active and not expired, mark as paid
+        const updatedTrade = await Trade.findOneAndUpdate(
+            { tradeId, status: 'active', expiresAt: { $gte: currentTime } },
+            { status: 'paid' },
+            { new: true }
+        );
+
+        res.status(200).json(updatedTrade);
     } catch (error) {
         console.error("Error confirming payment: ", error);
         res.status(500).json({ message: "Internal server error", error: error.message });
     }
 };
+
 
 exports.cancelTrade = async (req, res) => {
     const { tradeId } = req.body;
@@ -135,26 +183,61 @@ exports.cancelTrade = async (req, res) => {
             return res.status(404).json({ message: "Trade not found." });
         }
 
+        const user = await CharityUser.findById(trade.userId);
+        const userKyc = await Kyc.findOne({ user: trade.userId });
+
+        if (!user || !userKyc) {
+            return res.status(404).json({ message: "User or KYC information not found." });
+        }
+
         // Update the trade's status to 'cancelled'
         trade.status = 'cancelled';
         await trade.save();
 
-        // Find the user associated with the trade and increment their cancelled trade count
-        const user = await CharityUser.findById(trade.userId);
-
+        // Count the number of cancelled trades
         const cancelledTradeCount = await Trade.countDocuments({ userId: user._id, status: 'cancelled' });
 
-        if (cancelledTradeCount >= 5) { 
+        let emailSubject;
+        let htmlTemplatePath;
+        let emailTextContent;
+
+        if (cancelledTradeCount >= 5) {
+            // Ban the user if they've cancelled more than 5 trades
             user.isBanned = true;
             await user.save();
+
+            // Prepare ban notification email
+            emailSubject = `Account Status Notice`;
+            htmlTemplatePath = path.join(__dirname, '..', 'templates', 'banNotification.html');
+            emailTextContent = `Your account has been temporarily banned due to excessive trade cancellations.`;
+        } else {
+            // Prepare cancellation notification email
+            emailSubject = `${tradeId}- Trade Cancellation Notice`;
+            htmlTemplatePath = path.join(__dirname, '..', 'templates', 'cancellation.html');
+             emailTextContent = `Your trade with ID ${tradeId} has been cancelled.`;
         }
-        
+
+        // Load and modify the email HTML template
+        let htmlContent = fs.readFileSync(htmlTemplatePath, 'utf8')
+            .replace(/{{firstName}}/g, userKyc.firstName)
+            .replace(/{{lastName}}/g, userKyc.lastName)
+            .replace(/{{tradeId}}/g, tradeId);
+
+        // Send the email
+        await sendEmail({
+            toEmail: userKyc.email,
+            subject: emailSubject,
+            textContent: emailTextContent,
+            htmlContent: htmlContent
+        });
+
         res.status(200).json(trade);
     } catch (error) {
         console.error("Error cancelling trade: ", error);
         res.status(500).json({ message: "Internal server error", error: error.message });
     }
 };
+
 
 
 

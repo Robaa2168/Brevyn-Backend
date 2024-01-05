@@ -12,6 +12,7 @@ const donationRoutes = require('./routes/donationRoutes');
 const impactRoutes = require('./routes/impactRoutes');
 const commentRoutes = require('./routes/commentRoutes');
 const tradeRoutes = require('./routes/tradeRoutes');
+const transactionRoutes = require('./routes/transactionRoutes');
 
 // Initialize express app
 const app = express();
@@ -35,6 +36,7 @@ app.use('/api/donations', donationRoutes);
 app.use('/api/impacts', impactRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/trade', tradeRoutes);
+app.use('/api/transactions', transactionRoutes);
 app.get('/', (req, res) => res.send('Hello World with MERN!'));
 
 

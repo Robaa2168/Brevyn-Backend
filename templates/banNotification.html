@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            color: #333;
+        }
+        .header {
+            background-color: #e6f4ea; /* Faded green color */
+            padding: 20px;
+            text-align: center;
+        }
+        h1 {
+            margin: 0;
+            color: #245c48; /* Darker shade for the text for contrast */
+        }
+        .content {
+            padding: 20px;
+            text-align: left; /* Adjusted text alignment for better readability in paragraphs */
+            line-height: 1.6; /* Improved line spacing */
+            border-bottom: 1px solid #e6f4ea; /* Faded green border for a subtle separator */
+        }
+        .footer {
+            padding: 20px 20px 0;
+            font-size: 12px;
+            text-align: center;
+            color: grey;
+            background-color: #f9f9f9; /* Slightly off-white background for footer */
+        }
+        .footer p, .footer-contact a {
+            color: grey; /* Ensuring all text in the footer has uniform color */
+        }
+        .footer-contact a {
+            text-decoration: none; /* Removing underline from links for cleaner look */
+            color: #245c48; /* Giving links the same dark green color for a thematic consistency */
+        }
+        .footer-contact a:hover {
+            text-decoration: underline; /* Underline on hover for better user interaction */
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Account Status</h1>
+    </div>
+    <div class="content">
+        <p>Dear {{firstName}} {{lastName}},</p>
+        <p>We regret to inform you that your account has been temporarily banned due to excessive trade cancellations. As per our platform's policies, maintaining a reliable trading environment is crucial for all participants.</p>
+        <p>If you believe this is a mistake or if you have any questions, please contact our support team.</p>
+        <p>We appreciate your understanding and cooperation.</p>
+        <p>Best Regards,<br>Verdant Charity Team</p>
+    </div>
+    <div class="footer">
+        <p>&copy; Verdant Charity</p>
+        <div class="footer-address">VerdantCharity | Apt. 933 518 Lashell Rue, North Bernieville, NY 00961-9795</div>
+        <div class="footer-contact">
+            <p>
+                <a href="https://verdantcharity.com">verdantcharity.com</a> |
+                <a href="mailto:support@verdantcharity.com">support@verdantcharity.com</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

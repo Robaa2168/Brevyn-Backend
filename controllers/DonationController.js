@@ -33,7 +33,7 @@ async function sendEmail({ toEmail, subject, textContent, senderName, amount, me
     // Replace placeholders in htmlContent with actual values
     htmlContent = htmlContent
         .replace(/{{senderName}}/g, senderName)
-        .replace(/{{amount}}/g, `${amount}`) // Ensure amount is a string
+        .replace(/{{amount}}/g, `${amount}`)
         .replace(/{{message}}/g, message)
         .replace(/{{donationLinkTitle}}/g, donationLinkTitle);
 

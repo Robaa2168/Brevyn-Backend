@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            color: #333;
+        }
+        .header {
+            background-color: #e6f4ea;
+            padding: 20px;
+            text-align: center;
+        }
+        h1 {
+            margin: 0;
+            color: #245c48; 
+        }
+        .content {
+            padding: 20px;
+            text-align: left;
+            line-height: 1.6;
+            border-bottom: 1px solid #e6f4ea;
+        }
+        .footer {
+            padding: 20px 20px 0;
+            font-size: 12px;
+            text-align: center;
+            color: grey;
+            background-color: #f9f9f9;
+        }
+        .footer p, .footer-contact a {
+            color: grey;
+        }
+        .footer-contact a {
+            text-decoration: none;
+            color: #245c48;
+        }
+        .footer-contact a:hover {
+            text-decoration: underline; 
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Trade Cancelled</h1>
+    </div>
+    <div class="content">
+        <p>Dear {{firstName}},</p>
+        <p>You have cancelled your trade with ID <strong>{{tradeId}}</strong>. Please note that repeatedly cancelling trades affects the reliability of our trading platform. As a result, excessive cancellations may lead to a temporary ban on your account as per our community guidelines.</p>
+        <p>If you believe this to be an error or have any questions, please contact our support team immediately.</p>
+        <p>We value your participation and urge you to adhere to the community guidelines to ensure a fair and reliable trading environment for all users.</p>
+        
+    </div>
+    <div class="footer">
+        <p>&copy; Verdant Charity</p>
+        <div class="footer-address">VerdantCharity | Apt. 933 518 Lashell Rue, North Bernieville, NY 00961-9795</div>
+        <div class="footer-contact">
+            <p>
+                <a href="https://verdantcharity.com">verdantcharity.com</a> |
+                <a href="mailto:support@verdantcharity.com">support@verdantcharity.com</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
