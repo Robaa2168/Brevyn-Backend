@@ -24,8 +24,10 @@ app.use(bodyParser.json());
 app.use(cors());
 
 // Connect to MongoDB
-mongoose.connect('mongodb+srv://robaa40:Lahaja40@cluster0.q02nnfd.mongodb.net/myCharityDb?retryWrites=true&w=majority', { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('MongoDB Connected'))
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+}) .then(() => console.log('MongoDB Connected'))
   .catch(err => console.log(err));
 
 // Use Auth Routes
