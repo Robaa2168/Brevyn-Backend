@@ -1,5 +1,6 @@
 
 // controllers/CustomerController.js
+const mongoose = require('mongoose');
 const Kyc = require('../models/Kyc');
 const CharityUser = require('../models/CharityUser');
 const DonationLink = require('../models/donationLink');
@@ -124,3 +125,51 @@ exports.editKycData = async (req, res) => {
     }
 };
 
+
+
+exports.upgradeMembership = async (req, res) => {
+    const userId = req.user;
+    const costOfPremium = 300; // Define the cost of premium membership
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        const user = await CharityUser.findById(userId).session(session);
+        if (!user) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json({ message: "User not found." });
+        }
+
+        // Check if user has sufficient points
+        if (user.points < costOfPremium) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: "Insufficient points for membership upgrade." });
+        }
+
+        // Deduct points for premium membership using the $inc operator
+        await CharityUser.findByIdAndUpdate(userId, { $inc: { points: -costOfPremium }, isPremium: true }, { session });
+
+        // Create and save a notification for the user about the upgrade
+        const upgradeNotification = new Notification({
+            user: userId,
+            text: 'Your membership has been upgraded to Premium!',
+            type: 'Alert',
+        });
+
+        await upgradeNotification.save({ session });
+
+        // Commit the transaction and end the session
+        await session.commitTransaction();
+        session.endSession();
+
+        res.status(200).json({ message: "Membership upgraded successfully!" });
+    } catch (error) {
+        console.error("Error upgrading membership: ", error);
+        await session.abortTransaction();
+        session.endSession();
+        res.status(500).json({ message: "Failed to upgrade membership", error: error.message });
+    }
+};

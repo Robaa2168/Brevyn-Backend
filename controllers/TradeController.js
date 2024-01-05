@@ -68,7 +68,7 @@ exports.startTrade = async (req, res) => {
 
 
 exports.getTradeDetails = async (req, res) => {
-    const { tradeId } = req.params; // Extract tradeId from the route parameters
+    const { tradeId } = req.params;
 
     try {
         // Find the trade by tradeId
@@ -83,6 +83,22 @@ exports.getTradeDetails = async (req, res) => {
         res.status(200).json(trade);
     } catch (error) {
         console.error("Error fetching trade details: ", error);
+        res.status(500).json({ message: "Internal server error", error: error.message });
+    }
+};
+
+exports.getUserTrades = async (req, res) => {
+    try {
+        const userId = req.user; // Assuming req.user is set by your auth middleware
+
+        // Fetch the 10 most recent trades for the user
+        const trades = await Trade.find({ userId: userId })
+                                  .sort({ createdAt: -1 })
+                                  .limit(10); // Limit to 10 documents
+
+        res.status(200).json(trades);
+    } catch (error) {
+        console.error("Error fetching user trades: ", error);
         res.status(500).json({ message: "Internal server error", error: error.message });
     }
 };
@@ -126,14 +142,13 @@ exports.cancelTrade = async (req, res) => {
         // Find the user associated with the trade and increment their cancelled trade count
         const user = await CharityUser.findById(trade.userId);
 
-        // Count how many times the user has cancelled a trade
         const cancelledTradeCount = await Trade.countDocuments({ userId: user._id, status: 'cancelled' });
 
-        if (cancelledTradeCount > 5) { 
+        if (cancelledTradeCount >= 5) { 
             user.isBanned = true;
             await user.save();
         }
-
+        
         res.status(200).json(trade);
     } catch (error) {
         console.error("Error cancelling trade: ", error);
@@ -176,3 +191,5 @@ exports.restartTrade = async (req, res) => {
         res.status(500).json({ message: "Internal server error", error: error.message });
     }
 };
+
+

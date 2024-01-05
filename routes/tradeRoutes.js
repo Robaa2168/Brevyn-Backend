@@ -5,6 +5,8 @@ const router = express.Router();
 const TradeController = require('../controllers/TradeController');
 const authMiddleware = require('../middlewares/authMiddleware');
 
+
+router.get('/user-trades', authMiddleware, TradeController.getUserTrades);
 // Route to handle starting a new trade
 router.post('/start', authMiddleware, TradeController.startTrade);
 

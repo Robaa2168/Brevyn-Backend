@@ -286,10 +286,14 @@ exports.saveDonation = async (req, res) => {
     session.startTransaction();
   
     try {
+      // Validate input fields
       if (!uniqueIdentifier || !amount || !firstName || !lastName || !type) {
+        await session.abortTransaction();
+        session.endSession();
         return res.status(400).json({ message: "All required fields must be provided" });
       }
   
+      // Validate amount
       const numericAmount = parseFloat(amount.trim());
       if (isNaN(numericAmount) || numericAmount < 5) {
         await session.abortTransaction();
@@ -297,29 +301,59 @@ exports.saveDonation = async (req, res) => {
         return res.status(400).json({ message: "Invalid or insufficient donation amount" });
       }
   
+      // Retrieve donor and donation link
       const donor = await CharityUser.findById(donorId).session(session);
       const donationLink = await DonationLink.findOne({ uniqueIdentifier }).session(session);
   
-      if (!donor || !donationLink || donor.isBanned || donationLink.user.isBanned || donationLink.status !== 'active' || donor.balance < numericAmount) {
+      // Validate donor, donation link, and sufficient balance
+      if (!donor) {
         await session.abortTransaction();
         session.endSession();
-        return res.status(400).json({ message: "Validation failed for donor or donation link" });
+        return res.status(404).json({ message: "Donor not found." });
       }
-  
+
+      if (!donationLink || donationLink.status !== 'active') {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).json({ message: "Donation link not found or inactive." });
+      }
+
+      if (donor.isBanned) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(403).json({ message: "Donor is banned." });
+      }
+
+      if (donationLink.user.isBanned) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(403).json({ message: "Donation link owner is banned." });
+      }
+
+      if (donor.balance < numericAmount) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({ message: "Insufficient balance for this donation." });
+      }
+
+      // Deduct the donation amount from the donor's balance and update the donation link
       await CharityUser.findByIdAndUpdate(donorId, { $inc: { balance: -numericAmount } }, { session });
       const updatedDonationLink = await DonationLink.findByIdAndUpdate(donationLink._id, { $inc: { totalDonations: numericAmount } }, { session, new: true });
-  
+
+      // Check if the donation link has reached its target
       if (updatedDonationLink.totalDonations >= updatedDonationLink.targetAmount) {
         await DonationLink.findByIdAndUpdate(updatedDonationLink._id, { status: 'completed' }, { session });
         
+        // Notify the owner that their donation link is completed
         const ownerNotification = new Notification({
           user: updatedDonationLink.user,
           text: `Your donation link has reached its target and is now marked as completed.`,
           type: 'Alert',
         });
-        await ownerNotification.save();
+        await ownerNotification.save({ session });
       }
   
+      // Record the donation
       const donation = new Donation({
         donor: donorId,
         recipient: updatedDonationLink.user, 
@@ -331,23 +365,23 @@ exports.saveDonation = async (req, res) => {
         lastName: lastName,
         type: type
       });
-      await donation.save();
-  
+      await donation.save({ session });
+
+      // Notify the donor and the owner about the new donation
       const donorNotification = new Notification({
         user: donorId,
         text: `Thank you ${firstName} ${lastName} for your generous donation of ${amount}!`,
         type: 'Alert',
       });
-  
       const ownerNotification = new Notification({
         user: updatedDonationLink.user,
         text: `${firstName} ${lastName} has donated ${amount} to your cause!`,
         type: 'Alert',
       });
+      await donorNotification.save({ session });
+      await ownerNotification.save({ session });
   
-      await donorNotification.save();
-      await ownerNotification.save();
-  
+      // Commit the transaction and end the session
       await session.commitTransaction();
       session.endSession();
   
@@ -362,6 +396,7 @@ exports.saveDonation = async (req, res) => {
       res.status(500).json({ message: "Internal server error", error: error.message });
     }
   };
+
 
   exports.incrementViewCount = async (req, res) => {
     const { uniqueIdentifier } = req.params;
@@ -399,6 +434,8 @@ exports.saveDonation = async (req, res) => {
     }
   };
   
+
+
 
   exports.getUserDonations = async (req, res) => {
     const userId = req.user;

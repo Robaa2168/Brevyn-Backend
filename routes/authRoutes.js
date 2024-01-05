@@ -8,6 +8,7 @@ const authMiddleware = require('../middlewares/authMiddleware');
 // Define the signup and login routes
 router.post('/signup', authController.signupUser);
 router.post('/login', authController.loginUser);
+router.patch('/upgrade-membership', authMiddleware, customerController.upgradeMembership);
 router.post('/change-password', authMiddleware, authController.changePassword);
 router.post('/verify-first-time-user', authController.verifyFirstTimeUser);
 
