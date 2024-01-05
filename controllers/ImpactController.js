@@ -6,6 +6,8 @@ const Like = require('../models/Like');
 const Comment = require('../models/Comment');
 const Kyc = require('../models/Kyc');
 const CommentLike = require('../models/CommentLike');
+const fs = require('fs');
+const path = require('path');
 
 exports.createImpact = async (req, res) => {
     const { impactTitle, description, image, likes, views, shares } = req.body; // Ensure names match
@@ -197,6 +199,22 @@ exports.createCommentForImpact = async (req, res) => {
     const userId = req.user;
 
     if (!text.trim()) return res.status(400).json({ message: "Comment text cannot be empty" });
+
+    // Read the list of filter words
+    const filterWords = fs.readFileSync(path.join(__dirname, 'filter_words.txt'), 'utf-8')
+    .split('\n')
+    .map(word => word.trim().toLowerCase());
+
+// Prepare a regular expression for word boundary detection and case insensitivity
+// Using \\b for word boundaries, but also considering punctuation and other boundary characters
+const regex = new RegExp('(?:\\s|^)(' + filterWords.join('|') + ')(?:\\s|$|[.,!?])', 'i');
+
+// Check if comment contains any filter words
+const containsFilteredWord = regex.test(text.trim());
+
+if (containsFilteredWord) {
+    return res.status(400).json({ message: "Comment contains inappropriate content" });
+}
 
     try {
         const impact = await Impact.findById(impactId);

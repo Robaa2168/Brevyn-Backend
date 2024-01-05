@@ -97,7 +97,7 @@ exports.handleWithdraw = async (req, res) => {
         // Create a notification for the user about the withdrawal request
         const notification = new Notification({
             user: userId,
-            text: `Your withdrawal request of ${amount} is being processed.`,
+            text: `Your withdrawal request of $ ${amount} is being processed.`,
             type: 'Alert'
         });
 
