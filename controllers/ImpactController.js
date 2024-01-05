@@ -236,3 +236,20 @@ if (containsFilteredWord) {
         res.status(500).json({ message: "Internal server error", error: error.message });
     }
 };
+
+
+exports.getImpactDetail = async (req, res) => {
+    try {
+        const impactId = req.params.id; // Extract the id from the request parameters
+        const impact = await Impact.findById(impactId); // Fetch the impact from the database
+
+        if (!impact) {
+            return res.status(404).json({ message: "Impact not found" });
+        }
+
+        res.json(impact); // Send back the impact details
+    } catch (error) {
+        console.error("Error fetching impact details:", error);
+        res.status(500).json({ message: "Internal server error", error: error.message });
+    }
+};

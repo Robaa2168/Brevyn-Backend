@@ -12,6 +12,8 @@ router.get('/:impactId/comments', optionalMiddleware, ImpactController.getCommen
 router.post('/create', authMiddleware, ImpactController.createImpact);
 router.patch('/:impactId/likes',authMiddleware, ImpactController.toggleLike);
 router.post('/:impactId/comments', authMiddleware, ImpactController.createCommentForImpact);
+router.get('/:id', optionalMiddleware, ImpactController.getImpactDetail);
+
 
 // New route for getting all impacts
 router.get('/',  optionalMiddleware, ImpactController.getImpacts);
