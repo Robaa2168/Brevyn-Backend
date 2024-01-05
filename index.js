@@ -13,6 +13,7 @@ const impactRoutes = require('./routes/impactRoutes');
 const commentRoutes = require('./routes/commentRoutes');
 const tradeRoutes = require('./routes/tradeRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 
 // Initialize express app
 const app = express();
@@ -39,6 +40,7 @@ app.use('/api/impacts', impactRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/trade', tradeRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/abuse', reportRoutes);
 app.get('/', (req, res) => res.send('Hello World with MERN!'));
 
 
