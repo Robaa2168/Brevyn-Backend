@@ -1,12 +1,15 @@
 
 // controllers/DonationController.js
 const mongoose = require('mongoose');
+const fs = require('fs');
+const path = require('path');
 const { startSession } = require('mongoose');
 const Kyc = require('../models/Kyc');
 const CharityUser = require('../models/CharityUser');
 const DonationLink = require('../models/donationLink');
 const Notification = require('../models/Notification');
 const Donation = require('../models/donations');
+const nodemailer = require('nodemailer');
 
 
 function generateUniqueIdentifier() {
@@ -20,6 +23,40 @@ function generateUniqueIdentifier() {
     }
 
     return result;
+}
+
+async function sendEmail({ toEmail, subject, textContent, senderName, amount, message, donationLinkTitle }) {
+    // Load the HTML template
+    const templatePath = path.join(__dirname, '..', 'templates', 'donation.html');
+    let htmlContent = fs.readFileSync(templatePath, 'utf8');
+
+    // Replace placeholders in htmlContent with actual values
+    htmlContent = htmlContent
+        .replace(/{{senderName}}/g, senderName)
+        .replace(/{{amount}}/g, `${amount}`) // Ensure amount is a string
+        .replace(/{{message}}/g, message)
+        .replace(/{{donationLinkTitle}}/g, donationLinkTitle);
+
+    let transporter = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 587,
+        secure: false,
+        auth: {
+            user: 'flortieno@gmail.com',
+            pass: 'jxcsapcnfcshtfmy',
+        },
+    });
+
+    let info = await transporter.sendMail({
+        from: '"Verdant Charity" <flortieno@gmail.com>',
+        to: toEmail,
+        subject: subject,
+        text: textContent,
+        html: htmlContent,
+    });
+
+    console.log("Message sent: %s", info.messageId);
+    return info;
 }
 
 
@@ -54,7 +91,7 @@ exports.createDonationLink = async (req, res) => {
             return res.status(400).json({ message: "User already has an active donation link" });
         }
 
-        const imageData = image ? image : undefined; 
+        const imageData = image ? image : undefined;
         // Proceed with creating a new DonationLink document
         const uniqueIdentifier = generateUniqueIdentifier();
         const newDonationLink = new DonationLink({
@@ -281,169 +318,181 @@ exports.deleteDonationLink = async (req, res) => {
 exports.saveDonation = async (req, res) => {
     const { uniqueIdentifier, amount, firstName, lastName, note, type } = req.body;
     const donorId = req.user;
-  
+
     const session = await mongoose.startSession();
     session.startTransaction();
-  
+
     try {
-      // Validate input fields
-      if (!uniqueIdentifier || !amount || !firstName || !lastName || !type) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({ message: "All required fields must be provided" });
-      }
-  
-      // Validate amount
-      const numericAmount = parseFloat(amount.trim());
-      if (isNaN(numericAmount) || numericAmount < 5) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({ message: "Invalid or insufficient donation amount" });
-      }
-  
-      // Retrieve donor and donation link
-      const donor = await CharityUser.findById(donorId).session(session);
-      const donationLink = await DonationLink.findOne({ uniqueIdentifier }).session(session);
-  
-      // Validate donor, donation link, and sufficient balance
-      if (!donor) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(404).json({ message: "Donor not found." });
-      }
+        // Validate input fields
+        if (!uniqueIdentifier || !amount || !firstName || !lastName || !type) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: "All required fields must be provided" });
+        }
 
-      if (!donationLink || donationLink.status !== 'active') {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(404).json({ message: "Donation link not found or inactive." });
-      }
+        // Validate amount
+        const numericAmount = parseFloat(amount.trim());
+        if (isNaN(numericAmount) || numericAmount < 5) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: "Invalid or insufficient donation amount" });
+        }
 
-      if (donor.isBanned) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(403).json({ message: "Donor is banned." });
-      }
+        // Retrieve donor and donation link
+        const donor = await CharityUser.findById(donorId).session(session);
+        const donationLink = await DonationLink.findOne({ uniqueIdentifier }).populate('user').session(session);
 
-      if (donationLink.user.isBanned) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(403).json({ message: "Donation link owner is banned." });
-      }
+        // Validate donor, donation link, and sufficient balance
+        if (!donor) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json({ message: "Donor not found." });
+        }
 
-      if (donor.balance < numericAmount) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({ message: "Insufficient balance for this donation." });
-      }
+        if (!donationLink || donationLink.status !== 'active') {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json({ message: "Donation link not found or inactive." });
+        }
 
-      // Deduct the donation amount from the donor's balance and update the donation link
-      await CharityUser.findByIdAndUpdate(donorId, { $inc: { balance: -numericAmount } }, { session });
-      const updatedDonationLink = await DonationLink.findByIdAndUpdate(donationLink._id, { $inc: { totalDonations: numericAmount } }, { session, new: true });
+        if (donor.isBanned) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(403).json({ message: "Donor is banned." });
+        }
 
-      // Check if the donation link has reached its target
-      if (updatedDonationLink.totalDonations >= updatedDonationLink.targetAmount) {
-        await DonationLink.findByIdAndUpdate(updatedDonationLink._id, { status: 'completed' }, { session });
-        
-        // Notify the owner that their donation link is completed
-        const ownerNotification = new Notification({
-          user: updatedDonationLink.user,
-          text: `Your donation link has reached its target and is now marked as completed.`,
-          type: 'Alert',
+        if (donationLink.user.isBanned) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(403).json({ message: "Donation link owner is banned." });
+        }
+
+        if (donor.balance < numericAmount) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: "Insufficient balance for this donation." });
+        }
+
+        // Deduct the donation amount from the donor's balance and update the donation link
+        await CharityUser.findByIdAndUpdate(donorId, { $inc: { balance: -numericAmount } }, { session });
+        const updatedDonationLink = await DonationLink.findByIdAndUpdate(donationLink._id, { $inc: { totalDonations: numericAmount } }, { session, new: true });
+
+        // Check if the donation link has reached its target
+        if (updatedDonationLink.totalDonations >= updatedDonationLink.targetAmount) {
+            await DonationLink.findByIdAndUpdate(updatedDonationLink._id, { status: 'completed' }, { session });
+
+            // Notify the owner that their donation link is completed
+            const ownerNotification = new Notification({
+                user: updatedDonationLink.user,
+                text: `Your donation link has reached its target and is now marked as completed.`,
+                type: 'Alert',
+            });
+            await ownerNotification.save({ session });
+        }
+
+        // Record the donation
+        const donation = new Donation({
+            donor: donorId,
+            recipient: updatedDonationLink.user,
+            donationLink: donationLink._id,
+            amount: numericAmount,
+            message: note,
+            paymentStatus: 'completed',
+            firstName: firstName,
+            lastName: lastName,
+            type: type
         });
+        await donation.save({ session });
+
+        // Notify the donor and the owner about the new donation
+        const donorNotification = new Notification({
+            user: donorId,
+            text: `Thank you ${firstName} ${lastName} for your generous donation of ${amount}!`,
+            type: 'Alert',
+        });
+        const ownerNotification = new Notification({
+            user: updatedDonationLink.user,
+            text: `${firstName} ${lastName} has donated ${amount} to your cause!`,
+            type: 'Alert',
+        });
+        await donorNotification.save({ session });
         await ownerNotification.save({ session });
-      }
-  
-      // Record the donation
-      const donation = new Donation({
-        donor: donorId,
-        recipient: updatedDonationLink.user, 
-        donationLink: donationLink._id,
-        amount: numericAmount,
-        message: note,
-        paymentStatus: 'completed',
-        firstName: firstName,
-        lastName: lastName,
-        type: type
-      });
-      await donation.save({ session });
 
-      // Notify the donor and the owner about the new donation
-      const donorNotification = new Notification({
-        user: donorId,
-        text: `Thank you ${firstName} ${lastName} for your generous donation of ${amount}!`,
-        type: 'Alert',
-      });
-      const ownerNotification = new Notification({
-        user: updatedDonationLink.user,
-        text: `${firstName} ${lastName} has donated ${amount} to your cause!`,
-        type: 'Alert',
-      });
-      await donorNotification.save({ session });
-      await ownerNotification.save({ session });
-  
-      // Commit the transaction and end the session
-      await session.commitTransaction();
-      session.endSession();
-  
-      res.status(201).json({
-        message: "Donation saved successfully",
-        donation: donation
-      });
+        // Commit the transaction and end the session
+        await session.commitTransaction();
+        session.endSession();
+
+
+        await sendEmail({
+            toEmail: donationLink.user.email, // Use the email from the populated user data
+            subject: `${firstName} ${lastName} - New Donation Received!`,
+            textContent: `Hello, Your donation link ${donationLink.title} has received a new donation of ${numericAmount} from ${firstName} ${lastName}. Message: "${note}"`,
+            senderName: `${firstName} ${lastName}`,
+            amount: `${numericAmount}`, // Ensure amount is a string if it's not already
+            message: note,
+            donationLinkTitle: donationLink.title
+        });
+        
+
+        res.status(201).json({
+            message: "Donation saved successfully",
+            donation: donation
+        });
     } catch (error) {
-      console.error("Error saving donation: ", error);
-      await session.abortTransaction();
-      session.endSession();
-      res.status(500).json({ message: "Internal server error", error: error.message });
+        console.error("Error saving donation: ", error);
+        await session.abortTransaction();
+        session.endSession();
+        res.status(500).json({ message: "Internal server error", error: error.message });
     }
-  };
+};
 
 
-  exports.incrementViewCount = async (req, res) => {
+exports.incrementViewCount = async (req, res) => {
     const { uniqueIdentifier } = req.params;
     const session = await startSession();
-  
+
     try {
-      session.startTransaction();
-  
-      const options = { session, new: true };
-      const donationLink = await DonationLink.findOneAndUpdate(
-        { uniqueIdentifier: uniqueIdentifier },
-        { $inc: { views: 1 } },
-        options
-      );
-  
-      if (!donationLink) {
-        // If no donation link found, abort transaction and return 404
+        session.startTransaction();
+
+        const options = { session, new: true };
+        const donationLink = await DonationLink.findOneAndUpdate(
+            { uniqueIdentifier: uniqueIdentifier },
+            { $inc: { views: 1 } },
+            options
+        );
+
+        if (!donationLink) {
+            // If no donation link found, abort transaction and return 404
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json({ message: "Donation link not found" });
+        }
+
+        // If everything is okay, commit the transaction
+        await session.commitTransaction();
+        session.endSession();
+
+        // Respond with the updated view count
+        res.status(200).json({ views: donationLink.views });
+    } catch (error) {
+        // If an error occurs, abort the transaction and log the error
         await session.abortTransaction();
         session.endSession();
-        return res.status(404).json({ message: "Donation link not found" });
-      }
-  
-      // If everything is okay, commit the transaction
-      await session.commitTransaction();
-      session.endSession();
-      
-      // Respond with the updated view count
-      res.status(200).json({ views: donationLink.views });
-    } catch (error) {
-      // If an error occurs, abort the transaction and log the error
-      await session.abortTransaction();
-      session.endSession();
-      console.error('Error incrementing view count:', error);
-      res.status(500).json({ message: "Internal server error", error });
+        console.error('Error incrementing view count:', error);
+        res.status(500).json({ message: "Internal server error", error });
     }
-  };
-  
+};
 
 
 
-  exports.getUserDonations = async (req, res) => {
+
+exports.getUserDonations = async (req, res) => {
     const userId = req.user;
 
     try {
         const donations = await Donation.find({ recipient: userId })
-                                        .sort({ date: -1 })
-                                        .limit(10);
+            .sort({ date: -1 })
+            .limit(10);
 
         res.status(200).json(donations);
     } catch (error) {
