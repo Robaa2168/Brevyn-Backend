@@ -11,7 +11,7 @@ exports.sendMessage = async (req, res) => {
         const chatId = `CHT${uuidv4().substring(0, 8).toUpperCase()}`;
 
         const newMessage = new Chat({
-            chatId, // Use the generated chatId
+            chatId,
             tradeId,
             sender: senderId,
             receiver: receiverId,
@@ -27,10 +27,10 @@ exports.sendMessage = async (req, res) => {
 };
 
 exports.getMessages = async (req, res) => {
-    const { tradeId } = req.query; // Assuming tradeId is sent as a query param
+    const { tradeId } = req.query;
 
     try {
-        const messages = await Chat.find({ tradeId }).sort({ createdAt: 1 }); // Sorting oldest to newest
+        const messages = await Chat.find({ tradeId }).sort({ createdAt: 1 });
         res.status(200).json(messages);
     } catch (error) {
         console.error("Error fetching messages:", error);

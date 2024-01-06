@@ -45,8 +45,20 @@ async function sendEmail(recipientEmail, subject, greeting, message, code) {
 
 
 // Utility functions to generate unique information for the user
-const adjectives = ['Adorable', 'Brave', 'Calm'];
-const nouns = ['Panda', 'Lion', 'Eagle'];
+// More adjectives for names
+const adjectives = [
+  'Adorable', 'Brave', 'Calm', 'Adventurous', 'Charming', 'Dazzling', 'Elegant', 'Fierce', 
+  'Graceful', 'Heroic', 'Inventive', 'Joyful', 'Kind', 'Lively', 'Majestic', 'Noble', 
+  'Optimistic', 'Proud', 'Quirky', 'Radiant', 'Serene', 'Thoughtful', 'Unique', 'Vibrant', 'Wise'
+];
+
+// More nouns for names
+const nouns = [
+  'Panda', 'Lion', 'Eagle', 'Unicorn', 'Dragon', 'Tiger', 'Phoenix', 'Dolphin', 
+  'Wolf', 'Falcon', 'Bear', 'Fox', 'Hawk', 'Whale', 'Shark', 'Jaguar',
+  'Leopard', 'Zebra', 'Elephant', 'Rabbit', 'Kangaroo', 'Koala', 'Squirrel', 'Owl'
+];
+
 
 function generateRandomUsername() {
   const adj = adjectives[Math.floor(Math.random() * adjectives.length)];

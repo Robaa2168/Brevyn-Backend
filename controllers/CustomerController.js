@@ -129,7 +129,7 @@ exports.editKycData = async (req, res) => {
 
 exports.upgradeMembership = async (req, res) => {
     const userId = req.user;
-    const costOfPremium = 300; // Define the cost of premium membership
+    const costOfPremium = 50;
 
     const session = await mongoose.startSession();
     session.startTransaction();
