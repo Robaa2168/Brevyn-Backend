@@ -38,17 +38,17 @@ async function sendEmail({ toEmail, subject, textContent, senderName, amount, me
         .replace(/{{donationLinkTitle}}/g, donationLinkTitle);
 
     let transporter = nodemailer.createTransport({
-        host: "smtp.gmail.com",
+        host: "mail.privateemail.com",
         port: 587,
         secure: false,
         auth: {
-            user: 'flortieno@gmail.com',
-            pass: 'jxcsapcnfcshtfmy',
+          user: 'support@verdantcharity.org',
+          pass: 'Lahaja2168#',
         },
     });
 
     let info = await transporter.sendMail({
-        from: '"Verdant Charity" <flortieno@gmail.com>',
+        from: '"Verdant Charity" <support@verdantcharity.org>',
         to: toEmail,
         subject: subject,
         text: textContent,
