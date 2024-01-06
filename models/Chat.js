@@ -1,7 +1,13 @@
+//models/chat.js
 const mongoose = require('mongoose');
 
 const chatSchema = new mongoose.Schema(
   {
+    chatId: {
+      type: String,
+        required: true,
+        unique: true,
+    },
     message: {
       type: String,
       required: true,
