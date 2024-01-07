@@ -7,6 +7,8 @@ const authMiddleware = require('../middlewares/authMiddleware');
 
 
 router.get('/user-trades', authMiddleware, TradeController.getUserTrades);
+router.get('/seller-trades', authMiddleware, TradeController.getSellerTrades);
+
 // Route to handle starting a new trade
 router.post('/start', authMiddleware, TradeController.startTrade);
 

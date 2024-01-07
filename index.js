@@ -1,11 +1,12 @@
 // index.js
-
 require('dotenv').config();
-require('./cronJobs/expireTrades'); 
+require('./cronJobs/expireTrades');
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const http = require('http');
+const socketIo = require('socket.io');
 const authRoutes = require('./routes/authRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const donationRoutes = require('./routes/donationRoutes');
@@ -16,9 +17,26 @@ const transactionRoutes = require('./routes/transactionRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 
+
+const PORT = process.env.PORT || 5000;
+
 // Initialize express app
 const app = express();
 
+// Create an HTTP server and pass the Express app
+const server = http.createServer(app);
+
+// Attach socket.io to the server
+const io = socketIo(server, {
+  cors: {
+    origin: "*", // Allow your client origin
+    methods: ["GET", "POST"],
+    allowedHeaders: ["my-custom-header"],
+    credentials: true
+  }
+});
+
+global.io = io;
 // Use bodyParser to parse application/json content-type
 app.use(bodyParser.json());
 
@@ -29,11 +47,10 @@ app.use(cors());
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-}) .then(() => console.log('MongoDB Connected'))
+}).then(() => console.log('MongoDB Connected'))
   .catch(err => console.log(err));
 
-// Use Auth Routes
-
+// Define your routes
 app.use('/api/auth', authRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/donations', donationRoutes);
@@ -45,7 +62,20 @@ app.use('/api/abuse', reportRoutes);
 app.use('/api/chat', chatRoutes);
 app.get('/', (req, res) => res.send('Hello World with MERN!'));
 
+// Handling Socket.IO connections
+io.on('connection', (socket) => {
+  console.log('Client connected');
 
-// Listen on a port
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  // Handling disconnection
+  socket.on('disconnect', (reason) => {
+    console.log(`Client disconnected due to ${reason}`);
+  });
+
+  // Handle any Socket.IO errors
+  socket.on('error', (error) => {
+    console.error('Socket.IO Error', error);
+  });
+});
+
+// Listen on a port with the HTTP server, not the Express app
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

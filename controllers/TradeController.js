@@ -140,6 +140,22 @@ exports.getUserTrades = async (req, res) => {
 };
 
 
+
+exports.getSellerTrades = async (req, res) => {
+    try {
+        const trades = await Trade.find()
+                                  .sort({ createdAt: -1 })
+                                  .limit(10);
+
+        res.status(200).json(trades);
+    } catch (error) {
+        console.error("Error fetching all trades: ", error);
+        res.status(500).json({ message: "Internal server error", error: error.message });
+    }
+};
+
+
+
 exports.confirmPayment = async (req, res) => {
     const { tradeId } = req.body;
 
