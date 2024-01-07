@@ -375,6 +375,11 @@ exports.saveDonation = async (req, res) => {
 
         // Deduct the donation amount from the donor's balance and update the donation link
         await CharityUser.findByIdAndUpdate(donorId, { $inc: { balance: -numericAmount } }, { session });
+
+        // Add the donation amount to the recipient's (charity's) balance
+        await CharityUser.findByIdAndUpdate(donationLink.user._id, { $inc: { balance: numericAmount } }, { session });
+
+        // Update the total donations received in the donation link
         const updatedDonationLink = await DonationLink.findByIdAndUpdate(donationLink._id, { $inc: { totalDonations: numericAmount } }, { session, new: true });
 
         // Check if the donation link has reached its target
@@ -422,17 +427,15 @@ exports.saveDonation = async (req, res) => {
         await session.commitTransaction();
         session.endSession();
 
-
         await sendEmail({
-            toEmail: donationLink.user.email, // Use the email from the populated user data
+            toEmail: donationLink.user.email,
             subject: `${firstName} ${lastName} - New Donation Received!`,
             textContent: `Hello, Your donation link ${donationLink.title} has received a new donation of ${numericAmount} from ${firstName} ${lastName}. Message: "${note}"`,
             senderName: `${firstName} ${lastName}`,
-            amount: `${numericAmount}`, // Ensure amount is a string if it's not already
+            amount: `${numericAmount}`,
             message: note,
             donationLinkTitle: donationLink.title
         });
-        
 
         res.status(201).json({
             message: "Donation saved successfully",
