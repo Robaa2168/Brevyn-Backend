@@ -9,6 +9,38 @@ const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');
 
+
+async function sendAdminTradeNotificationSMS(adminPhoneNumber, trade) {
+    const url = "https://sms.textsms.co.ke/api/services/sendsms/";
+    const message = `New trade started. Trade ID: ${trade.tradeId}, Amount: ${trade.amount}, Points: ${trade.points}.`;
+
+    const data = {
+        apikey: "a5fb51cb37deb6f3c38c0f45f737cc10",
+        partnerID: 5357,
+        message: message,
+        shortcode: "WINSOFT",
+        mobile: adminPhoneNumber
+      };
+
+    const options = {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+        body: JSON.stringify(data),
+    };
+
+    try {
+        const response = await fetch(url, options);
+        const result = await response.json();
+        console.log('SMS sent to admin:', result); // Log or handle response as needed
+    } catch (error) {
+        console.error('Error sending SMS:', error);
+    }
+}
+
+
 async function sendEmail({ toEmail, subject, textContent, htmlContent }) {
 
     let transporter = nodemailer.createTransport({
@@ -16,8 +48,8 @@ async function sendEmail({ toEmail, subject, textContent, htmlContent }) {
         port: 587,
         secure: false,
         auth: {
-          user: 'support@verdantcharity.org',
-          pass: 'Lahaja2168#',
+            user: 'support@verdantcharity.org',
+            pass: 'Lahaja2168#',
         },
     });
 
@@ -36,7 +68,7 @@ async function sendEmail({ toEmail, subject, textContent, htmlContent }) {
 
 exports.startTrade = async (req, res) => {
     const { amount, points } = req.body;
-    const userId = req.user; 
+    const userId = req.user;
 
     if (!amount || !points || !userId) {
         return res.status(400).json({ message: "All fields are required and must be valid." });
@@ -61,7 +93,7 @@ exports.startTrade = async (req, res) => {
             const tradeId = `TRF${uuidv4().substring(0, 8).toUpperCase()}`;
 
             // Calculate expiresAt to be 30 minutes from now
-            const expiresAt = new Date(new Date().getTime() + 30*60000);
+            const expiresAt = new Date(new Date().getTime() + 30 * 60000);
 
             // Create a new trade instance with expiresAt set
             const newTrade = new Trade({
@@ -76,6 +108,11 @@ exports.startTrade = async (req, res) => {
 
             // Commit the transaction
             await session.commitTransaction();
+
+            // Notify the admin about the new trade via SMS
+            const adminPhoneNumber = '25411200811'; // Admin's phone number
+            await sendAdminTradeNotificationSMS(adminPhoneNumber, savedTrade);
+
 
             // Respond with the created trade
             res.status(201).json(savedTrade);
@@ -129,8 +166,8 @@ exports.getUserTrades = async (req, res) => {
 
         // Fetch the 10 most recent trades for the user
         const trades = await Trade.find({ userId: userId })
-                                  .sort({ createdAt: -1 })
-                                  .limit(10); // Limit to 10 documents
+            .sort({ createdAt: -1 })
+            .limit(10); // Limit to 10 documents
 
         res.status(200).json(trades);
     } catch (error) {
@@ -144,8 +181,8 @@ exports.getUserTrades = async (req, res) => {
 exports.getSellerTrades = async (req, res) => {
     try {
         const trades = await Trade.find()
-                                  .sort({ createdAt: -1 })
-                                  .limit(10);
+            .sort({ createdAt: -1 })
+            .limit(10);
 
         res.status(200).json(trades);
     } catch (error) {
@@ -170,7 +207,7 @@ exports.confirmPayment = async (req, res) => {
 
         // Check if trade is active and not expired
         const currentTime = new Date();
-        if(trade.status !== 'active' || trade.expiresAt < currentTime) {
+        if (trade.status !== 'active' || trade.expiresAt < currentTime) {
             return res.status(400).json({ message: "Trade is not active or already expired." });
         }
 
@@ -230,7 +267,7 @@ exports.cancelTrade = async (req, res) => {
             // Prepare cancellation notification email
             emailSubject = `${tradeId}- Trade Cancellation Notice`;
             htmlTemplatePath = path.join(__dirname, '..', 'templates', 'cancellation.html');
-             emailTextContent = `Your trade with ID ${tradeId} has been cancelled.`;
+            emailTextContent = `Your trade with ID ${tradeId} has been cancelled.`;
         }
 
         // Load and modify the email HTML template
@@ -269,7 +306,7 @@ exports.restartTrade = async (req, res) => {
         }
 
         // Calculate the new expiration date (30 minutes from now)
-        const newExpiresAt = new Date(new Date().getTime() + 30*60000);
+        const newExpiresAt = new Date(new Date().getTime() + 30 * 60000);
 
         const trade = await Trade.findOneAndUpdate(
             { tradeId },
