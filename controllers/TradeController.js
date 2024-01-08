@@ -34,7 +34,7 @@ async function sendAdminTradeNotificationSMS(adminPhoneNumber, trade) {
     try {
         const response = await fetch(url, options);
         const result = await response.json();
-        console.log('SMS sent to admin:', result); // Log or handle response as needed
+        console.log('SMS sent to admin:', result);
     } catch (error) {
         console.error('Error sending SMS:', error);
     }
@@ -110,7 +110,7 @@ exports.startTrade = async (req, res) => {
             await session.commitTransaction();
 
             // Notify the admin about the new trade via SMS
-            const adminPhoneNumber = '25411200811'; // Admin's phone number
+            const adminPhoneNumber = '254111200811'; // Admin's phone number
             await sendAdminTradeNotificationSMS(adminPhoneNumber, savedTrade);
 
 
