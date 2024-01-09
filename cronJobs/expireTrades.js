@@ -74,7 +74,7 @@ cron.schedule('* * * * *', async () => {
             // Check for user ban due to excessive cancellations
             const cancelledTradeCount = await Trade.countDocuments({ userId: user._id, status: 'cancelled' });
 
-            if (cancelledTradeCount >= 5) {
+            if (cancelledTradeCount >= 35) {
                 user.isBanned = true;
                 await user.save();
 

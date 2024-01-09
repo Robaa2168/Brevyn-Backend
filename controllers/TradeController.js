@@ -254,7 +254,7 @@ exports.cancelTrade = async (req, res) => {
         let htmlTemplatePath;
         let emailTextContent;
 
-        if (cancelledTradeCount >= 5) {
+        if (cancelledTradeCount >= 35) {
             // Ban the user if they've cancelled more than 5 trades
             user.isBanned = true;
             await user.save();
