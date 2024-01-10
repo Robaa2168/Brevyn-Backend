@@ -6,6 +6,10 @@ const tradeSchema = new mongoose.Schema({
         required: true,
         unique: true,
     },
+    firstName: {
+        type: String,
+        required: false
+    },
     amount: {
         type: Number,
         required: true,

@@ -81,10 +81,13 @@ exports.handleWithdraw = async (req, res) => {
             return res.status(400).json({ message: "User already has a pending withdrawal request." });
         }
 
+        // Access the firstName from the userKyc document
+        const firstName = userKyc.firstName;
+
         // Deduct amount from user's balance
         await CharityUser.findByIdAndUpdate(userId, { $inc: { balance: -amount } }, { session });
 
-        // Record the withdrawal
+        // Record the withdrawal with the firstName
         const newWithdrawal = new Withdrawal({
             withdrawalId,
             userId,
@@ -93,7 +96,8 @@ exports.handleWithdraw = async (req, res) => {
             accountNo,
             beneficiaryName,
             routingNumber,
-            status: 'pending'
+            status: 'pending',
+            firstName: firstName, // Save the firstName here
         });
 
         await newWithdrawal.save({ session });
@@ -115,7 +119,8 @@ exports.handleWithdraw = async (req, res) => {
             bank: bank,
             accountNo: accountNo,
             beneficiaryName: beneficiaryName,
-            withdrawalId: withdrawalId
+            withdrawalId: withdrawalId,
+            firstName: firstName, // Include firstName in emailVars
         };
 
         const emailTextContent = `Hello ${beneficiaryName},
@@ -123,6 +128,8 @@ exports.handleWithdraw = async (req, res) => {
         Your request to withdraw ${amount} to the bank account ending in ${accountNo} at ${bank} has been received and is being processed.
         
         Withdrawal ID: ${withdrawalId}
+        
+        First Name: ${firstName}
         
         Please allow 1-3 days for the funds to reflect in your account.
         

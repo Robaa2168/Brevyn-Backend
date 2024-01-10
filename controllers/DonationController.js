@@ -97,6 +97,13 @@ exports.createDonationLink = async (req, res) => {
             return res.status(400).json({ message: "User already has a donation link" });
         }
 
+        // Fetch the user's firstName from the Kyc document
+        const userKyc = await Kyc.findOne({ user: userId });
+        if (!userKyc || !userKyc.firstName) {
+            return res.status(403).json({ message: "Please complete filling your KYC information before creating a donation link." });
+        }
+        const firstName = userKyc.firstName;
+
         const imageData = image ? image : undefined;
         // Proceed with creating a new DonationLink document
         const uniqueIdentifier = generateUniqueIdentifier();
@@ -107,6 +114,7 @@ exports.createDonationLink = async (req, res) => {
             description: description.trim(),
             uniqueIdentifier,
             image: imageData,
+            firstName: firstName, // Save the firstName here
         });
 
         // Save the new donation link to the database
@@ -132,6 +140,7 @@ exports.createDonationLink = async (req, res) => {
         res.status(500).json({ message: "Internal server error", error: error.message });
     }
 };
+
 
 
 

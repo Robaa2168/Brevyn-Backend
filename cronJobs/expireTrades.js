@@ -48,7 +48,7 @@ cron.schedule('* * * * *', async () => {
     const currentTime = new Date();
 
     try {
-        const expiredTrades = await Trade.find({ status: 'active', expiresAt: { $lt: currentTime } });
+        const expiredTrades = await Trade.find({ status: { $in: ['active', 'paid'] }, expiresAt: { $lt: currentTime } });
 
         for (let trade of expiredTrades) {
             trade.status = 'cancelled';

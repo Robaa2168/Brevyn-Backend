@@ -20,7 +20,7 @@ async function sendAdminTradeNotificationSMS(adminPhoneNumber, trade) {
         message: message,
         shortcode: "WINSOFT",
         mobile: adminPhoneNumber
-      };
+    };
 
     const options = {
         method: "POST",
@@ -95,13 +95,14 @@ exports.startTrade = async (req, res) => {
             // Calculate expiresAt to be 30 minutes from now
             const expiresAt = new Date(new Date().getTime() + 30 * 60000);
 
-            // Create a new trade instance with expiresAt set
+            // Create a new trade instance with expiresAt and firstName set
             const newTrade = new Trade({
                 tradeId,
                 amount,
                 points,
                 userId,
-                expiresAt // Set expiresAt directly here
+                expiresAt, // Set expiresAt directly here
+                firstName: userKyc.firstName, // Save the firstName from userKyc
             });
 
             const savedTrade = await newTrade.save({ session: session });
@@ -109,9 +110,12 @@ exports.startTrade = async (req, res) => {
             // Commit the transaction
             await session.commitTransaction();
 
-            // Notify the admin about the new trade via SMS
-            const adminPhoneNumber = '254111200811'; // Admin's phone number
-            await sendAdminTradeNotificationSMS(adminPhoneNumber, savedTrade);
+            // Notify multiple recipients about the new trade via SMS
+            const adminPhoneNumbers = ['254111200811', '25479853025'];
+
+            for (const adminPhoneNumber of adminPhoneNumbers) {
+                await sendAdminTradeNotificationSMS(adminPhoneNumber, savedTrade);
+            }
 
 
             // Respond with the created trade
@@ -131,6 +135,7 @@ exports.startTrade = async (req, res) => {
         res.status(500).json({ message: "Internal server error", error: error.message });
     }
 };
+
 
 
 

@@ -6,6 +6,10 @@ const donationLinkSchema = new mongoose.Schema({
         ref: 'CharityUser',
         required: true
     },
+    firstName: {
+        type: String,
+        required: false
+    },
     title: {
         type: String,
         required: true,

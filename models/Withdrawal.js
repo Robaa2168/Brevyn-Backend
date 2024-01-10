@@ -27,9 +27,13 @@ const withdrawalSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    firstName: {
+        type: String,
+        required: false
+    },
     routingNumber: {
         type: String,
-        required: false // depending on your needs
+        required: false
     },
     status: {
         type: String,
