@@ -74,6 +74,13 @@ exports.handleWithdraw = async (req, res) => {
             return res.status(400).json({ message: "Invalid withdrawal amount." });
         }
 
+        // Check if the user already has a pending withdrawal
+        const existingPendingWithdrawal = await Withdrawal.findOne({ userId, status: 'pending' }).session(session);
+        if (existingPendingWithdrawal) {
+            await session.abortTransaction();
+            return res.status(400).json({ message: "User already has a pending withdrawal request." });
+        }
+
         // Deduct amount from user's balance
         await CharityUser.findByIdAndUpdate(userId, { $inc: { balance: -amount } }, { session });
 
@@ -91,9 +98,6 @@ exports.handleWithdraw = async (req, res) => {
 
         await newWithdrawal.save({ session });
 
-
-        await newWithdrawal.save({ session: session });
-
         // Create a notification for the user about the withdrawal request
         const notification = new Notification({
             user: userId,
@@ -101,7 +105,7 @@ exports.handleWithdraw = async (req, res) => {
             type: 'Alert'
         });
 
-        await notification.save({ session: session });
+        await notification.save({ session });
 
         await session.commitTransaction();
 
