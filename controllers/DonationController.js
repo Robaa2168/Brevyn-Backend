@@ -91,6 +91,12 @@ exports.createDonationLink = async (req, res) => {
             return res.status(400).json({ message: "User already has an active donation link" });
         }
 
+        // Check if the user already has any donation link (including inactive ones)
+        const existingLink = await DonationLink.findOne({ user: userId });
+        if (existingLink) {
+            return res.status(400).json({ message: "User already has a donation link" });
+        }
+
         const imageData = image ? image : undefined;
         // Proceed with creating a new DonationLink document
         const uniqueIdentifier = generateUniqueIdentifier();
