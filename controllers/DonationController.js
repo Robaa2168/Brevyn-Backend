@@ -357,6 +357,13 @@ exports.saveDonation = async (req, res) => {
         const donor = await CharityUser.findById(donorId).session(session);
         const donationLink = await DonationLink.findOne({ uniqueIdentifier }).populate('user').session(session);
 
+        // Check if the donor is the owner of the donation link
+        if (donorId.toString() === donationLink.user._id.toString()) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: "An error occurred try again later." });
+        }
+
         // Validate donor, donation link, and sufficient balance
         if (!donor) {
             await session.abortTransaction();
@@ -463,6 +470,7 @@ exports.saveDonation = async (req, res) => {
         res.status(500).json({ message: "Internal server error", error: error.message });
     }
 };
+
 
 
 exports.incrementViewCount = async (req, res) => {
