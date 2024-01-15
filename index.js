@@ -16,6 +16,7 @@ const tradeRoutes = require('./routes/tradeRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
 
 
 
@@ -62,6 +63,7 @@ app.use('/api/trade', tradeRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/abuse', reportRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/reviews', reviewRoutes);
 app.get('/', (req, res) => res.send('Hello World with MERN!'));
 
 // Handling Socket.IO connections
