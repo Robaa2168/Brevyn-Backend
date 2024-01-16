@@ -1,13 +1,13 @@
 // index.js
 require('dotenv').config();
 require('./cronJobs/expireTrades');
-require('./cronJobs/donationjob');
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const http = require('http');
 const socketIo = require('socket.io');
+const { runDonationJob } = require('./cronJobs/donationjob');
 const authRoutes = require('./routes/authRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const donationRoutes = require('./routes/donationRoutes');
@@ -51,7 +51,11 @@ app.use(cors());
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-}).then(() => console.log('MongoDB Connected'))
+}).then(() => {
+    console.log('MongoDB Connected');
+    // Initialize cron jobs after successful database connection
+    runDonationJob();
+  })
   .catch(err => console.log(err));
 
 // Define your routes

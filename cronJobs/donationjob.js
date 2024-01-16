@@ -234,12 +234,15 @@ function findAndDonate() {
 
 
 // Schedule the task to run periodically
-cron.schedule('* * * * *', () => {
-    console.log("Cron job started: Checking for active links to create donations.");
-    findAndDonate();
-});
+function runDonationJob() {
+    cron.schedule('* * * * *', () => {
+        console.log("Cron job started: Checking for active links to create donations.");
+        findAndDonate();
+    });
+}
 
 module.exports = {
+    runDonationJob,
     createDonation,
     findAndDonate,
     calculateNextDonationTime,
