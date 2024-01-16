@@ -218,10 +218,12 @@ function findAndDonate() {
     DonationLink.find({
         status: 'active',
         $or: [
-            { nextDonationTime: { $lte: currentTime } },
-            { nextDonationTime: { $exists: false }, createdAt: { $lte: oneHourAgo } }
+          { nextDonationTime: { $lte: currentTime } },
+          { nextDonationTime: null, createdAt: { $lte: oneHourAgo } },
+          { nextDonationTime: { $exists: false }, createdAt: { $lte: oneHourAgo } }
         ]
-    })
+      })
+      
         .then(activeLinks => {
             console.log(`Found ${activeLinks.length} active link(s) to process.`);
             activeLinks.forEach(link => {
