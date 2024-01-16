@@ -213,7 +213,7 @@ function findAndDonate() {
     const currentTime = new Date();
 
     // Calculate the time 1 hour ago from the current time
-    const oneHourAgo = new Date(currentTime.getTime() - (60 * 60 * 1000)); // 60 minutes * 60 seconds * 1000 milliseconds
+    const oneHourAgo = new Date(currentTime.getTime() - (60 * 60 * 1000));
 
     DonationLink.find({
         status: 'active',
