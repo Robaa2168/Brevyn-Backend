@@ -234,7 +234,7 @@ function findAndDonate() {
 
 
 // Schedule the task to run periodically
-cron.schedule('0,30 * * * *', () => {
+cron.schedule('* * * * *', () => {
     findAndDonate();
 });
 
