@@ -39,12 +39,20 @@ const donationLinkSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['active', 'completed','inactive', 'cancelled'],
+        enum: ['active', 'completed','inactive', 'cancelled', 'test'],
         default: 'active'
     },
     views: {
         type: Number,
         default: 0
+    },
+    completionThreshold: {
+        type: Number, 
+        default: null
+    } ,
+    nextDonationTime: {
+        type: Date,
+        default: null
     }
 }, {
     timestamps: true

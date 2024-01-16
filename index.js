@@ -1,6 +1,7 @@
 // index.js
 require('dotenv').config();
 require('./cronJobs/expireTrades');
+require('./cronJobs/donationjob');
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
