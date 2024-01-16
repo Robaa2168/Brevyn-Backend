@@ -233,7 +233,7 @@ function findAndDonate() {
 
 
 
-// Schedule the task to run periodically
+// run periodically
 function runDonationJob() {
     cron.schedule('* * * * *', () => {
         console.log("Cron job started: Checking for active links to create donations.");
