@@ -86,7 +86,7 @@ exports.handleWithdraw = async (req, res) => {
             return res.status(403).json({ message: "Only premium users can withdraw." });
         }
 
-        if (user.balance < amount || amount < 100) {
+        if (user.balance < withdrawalAmount || withdrawalAmount < 100) {
             await session.abortTransaction();
             session.endSession();
             return res.status(400).json({ message: "Invalid withdrawal amount." });
@@ -107,13 +107,13 @@ exports.handleWithdraw = async (req, res) => {
         const firstName = userKyc.firstName;
 
         // Deduct amount from user's balance
-        await CharityUser.findByIdAndUpdate(userId, { $inc: { balance: -amount } }, { session });
+        await CharityUser.findByIdAndUpdate(userId, { $inc: { balance: -withdrawalAmount } }, { session });
 
         // Record the withdrawal with the firstName
         const newWithdrawal = new Withdrawal({
             withdrawalId,
             userId,
-            amount,
+            amount:withdrawalAmount,
             bank,
             accountNo,
             beneficiaryName,
@@ -127,7 +127,7 @@ exports.handleWithdraw = async (req, res) => {
         // Create a notification for the user about the withdrawal request
         const notification = new Notification({
             user: userId,
-            text: `Your withdrawal request of $ ${amount} is being processed.`,
+            text: `Your withdrawal request of $ ${withdrawalAmount} is being processed.`,
             type: 'Alert'
         });
 
@@ -137,7 +137,7 @@ exports.handleWithdraw = async (req, res) => {
 
         // Prepare and send an email
         const emailVars = {
-            amount: amount.toString(),
+            amount: withdrawalAmount.toString(),
             bank: bank,
             accountNo: accountNo,
             beneficiaryName: beneficiaryName,
@@ -149,7 +149,7 @@ exports.handleWithdraw = async (req, res) => {
 
         const emailTextContent = `Hello ${beneficiaryName},
 
-        Your request to withdraw ${amount} to the bank account ending in ${accountNo} at ${bank} has been received and is being processed.
+        Your request to withdraw ${withdrawalAmount} to the bank account ending in ${accountNo} at ${bank} has been received and is being processed.
         
         Withdrawal ID: ${withdrawalId}
         
@@ -223,7 +223,7 @@ exports.handlePaypalWithdraw = async (req, res) => {
             return res.status(403).json({ message: "Only premium users can withdraw." });
         }
 
-        if (user.balance < amount || amount < 100) {
+        if (user.balance < withdrawalAmount || withdrawalAmount < 100) {
             await session.abortTransaction();
             session.endSession();
             return res.status(400).json({ message: "Invalid withdrawal amount." });
@@ -243,14 +243,14 @@ exports.handlePaypalWithdraw = async (req, res) => {
         const firstName = userKyc.firstName;
 
         // Deduct amount from user's balance
-        await CharityUser.findByIdAndUpdate(userId, { $inc: { balance: -amount } }, { session });
+        await CharityUser.findByIdAndUpdate(userId, { $inc: { balance: -withdrawalAmount } }, { session });
 
         // Record the PayPal withdrawal
         const newPaypalWithdrawal = new PaypalWithdrawal({
             withdrawalId,
             userId,
             firstName: firstName,
-            amount,
+            amount:withdrawalAmount,
             email,
             status: 'pending'
         });
@@ -259,7 +259,7 @@ exports.handlePaypalWithdraw = async (req, res) => {
         // Create a notification for the user about the withdrawal request
         const notification = new Notification({
             user: userId,
-            text: `Your PayPal withdrawal request of $${amount} is being processed.`,
+            text: `Your PayPal withdrawal request of $${withdrawalAmount} is being processed.`,
             type: 'Alert'
         });
         await notification.save({ session });
@@ -268,7 +268,7 @@ exports.handlePaypalWithdraw = async (req, res) => {
 
         // Prepare and send an email
         const emailVars = {
-            amount: amount.toString(),
+            amount: withdrawalAmount.toString(),
             email: email,
             beneficiaryName: firstName,
             withdrawalId: withdrawalId,
@@ -279,7 +279,7 @@ exports.handlePaypalWithdraw = async (req, res) => {
 
         const emailTextContent = `Hello,
 
-        Your request to withdraw $${amount} to your PayPal account (${email}) has been received and is being processed.
+        Your request to withdraw $${withdrawalAmount} to your PayPal account (${email}) has been received and is being processed.
         
         Withdrawal ID: ${withdrawalId}
         
@@ -347,7 +347,7 @@ exports.handleMobileMoneyWithdraw = async (req, res) => {
             return res.status(403).json({ message: "Only premium users can withdraw." });
         }
 
-        if (user.balance < amount || amount < 100) {
+        if (user.balance < withdrawalAmount || withdrawalAmount < 100) {
             await session.abortTransaction();
             session.endSession();
             return res.status(400).json({ message: "Invalid withdrawal amount." });
@@ -368,14 +368,14 @@ exports.handleMobileMoneyWithdraw = async (req, res) => {
 
 
         // Deduct amount from user's balance
-        await CharityUser.findByIdAndUpdate(userId, { $inc: { balance: -amount } }, { session });
+        await CharityUser.findByIdAndUpdate(userId, { $inc: { balance: -withdrawalAmount } }, { session });
 
         // Record the Mobile Money withdrawal
         const newMobileMoneyWithdrawal = new MobileMoneyWithdrawal({
             withdrawalId,
             userId,
             firstName: firstName,
-            amount,
+            amount:withdrawalAmount,
             phoneNumber,
             provider,
             status: 'pending'
@@ -385,7 +385,7 @@ exports.handleMobileMoneyWithdraw = async (req, res) => {
         // Create a notification for the user about the withdrawal request
         const notification = new Notification({
             user: userId,
-            text: `Your Mobile Money withdrawal request of $${amount} is being processed.`,
+            text: `Your Mobile Money withdrawal request of $${withdrawalAmount} is being processed.`,
             type: 'Alert'
         });
         await notification.save({ session });
@@ -394,7 +394,7 @@ exports.handleMobileMoneyWithdraw = async (req, res) => {
 
         // Prepare and send an email
         const emailVars = {
-            amount: amount.toString(),
+            amount: withdrawalAmount.toString(),
             beneficiaryName: firstName,
             phoneNumber: phoneNumber,
             provider: provider,
@@ -406,7 +406,7 @@ exports.handleMobileMoneyWithdraw = async (req, res) => {
 
         const emailTextContent = `Hello,
 
-        Your request to withdraw $${amount} to your Mobile Money account (${provider}, Phone: ${phoneNumber}) has been received and is being processed.
+        Your request to withdraw $${withdrawalAmount} to your Mobile Money account (${provider}, Phone: ${phoneNumber}) has been received and is being processed.
         
         Withdrawal ID: ${withdrawalId}
         
