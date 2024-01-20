@@ -106,7 +106,7 @@ exports.signupUser = async (req, res) => {
   }
 
   // Extracting user data from the request body
-  const { email, phoneNumber, password, profileImage } = req.body;
+  const { email, phoneNumber, password } = req.body;
 
   // Ensure all required fields are provided
   if (!email || !phoneNumber || !password) {
@@ -139,7 +139,6 @@ exports.signupUser = async (req, res) => {
       email,
       phoneNumber: formattedPhoneNumber,
       password: hashedPassword,
-      profileImage,
       username,
       referralCode,
       uniqueId,
