@@ -83,7 +83,7 @@ exports.handleWithdraw = async (req, res) => {
 
         if (!user.isPremium) {
             await session.abortTransaction();
-            return res.status(403).json({ message: "Only premium users can withdraw." });
+            return res.status(403).json({ message: "Only premium users can withdraw. Upgrade your membership" });
         }
 
         if (user.balance < withdrawalAmount || withdrawalAmount < 100) {
@@ -220,7 +220,7 @@ exports.handlePaypalWithdraw = async (req, res) => {
 
         if (!user.isPremium) {
             await session.abortTransaction();
-            return res.status(403).json({ message: "Only premium users can withdraw." });
+            return res.status(403).json({ message: "Only premium users can withdraw. Upgrade your membership" });
         }
 
         if (user.balance < withdrawalAmount || withdrawalAmount < 100) {
@@ -344,7 +344,7 @@ exports.handleMobileMoneyWithdraw = async (req, res) => {
 
         if (!user.isPremium) {
             await session.abortTransaction();
-            return res.status(403).json({ message: "Only premium users can withdraw." });
+            return res.status(403).json({ message: "Only premium users can withdraw. Upgrade your membership" });
         }
 
         if (user.balance < withdrawalAmount || withdrawalAmount < 100) {
