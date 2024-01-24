@@ -81,11 +81,6 @@ exports.handleWithdraw = async (req, res) => {
             return res.status(403).json({ message: "User is banned and cannot make a withdrawal." });
         }
 
-        if (!user.isPremium) {
-            await session.abortTransaction();
-            return res.status(403).json({ message: "Only premium users can withdraw. Upgrade your membership" });
-        }
-
         if (user.balance < withdrawalAmount || withdrawalAmount < 100) {
             await session.abortTransaction();
             session.endSession();
@@ -218,11 +213,6 @@ exports.handlePaypalWithdraw = async (req, res) => {
             return res.status(403).json({ message: "User is banned and cannot make a withdrawal." });
         }
 
-        if (!user.isPremium) {
-            await session.abortTransaction();
-            return res.status(403).json({ message: "Only premium users can withdraw. Upgrade your membership" });
-        }
-
         if (user.balance < withdrawalAmount || withdrawalAmount < 100) {
             await session.abortTransaction();
             session.endSession();
@@ -340,11 +330,6 @@ exports.handleMobileMoneyWithdraw = async (req, res) => {
         if (user.isBanned) {
             await session.abortTransaction();
             return res.status(403).json({ message: "User is banned and cannot make a withdrawal." });
-        }
-
-        if (!user.isPremium) {
-            await session.abortTransaction();
-            return res.status(403).json({ message: "Only premium users can withdraw. Upgrade your membership" });
         }
 
         if (user.balance < withdrawalAmount || withdrawalAmount < 100) {
