@@ -105,7 +105,7 @@ async function processFailedWithdrawal(withdrawal, model, userId) {
 
 // Scheduled task
 function initializeWithdrawalUpdateJob() {
-cron.schedule('* * * * *', async () => {
+cron.schedule('*/15 * * * *', async () => {
     console.log("Running withdrawal update task at:", new Date().toISOString());
 
     const processingTime = new Date(new Date().getTime() - 15 * 60 * 1000); // 15 minutes ago
