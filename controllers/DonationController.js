@@ -81,8 +81,8 @@ exports.createDonationLink = async (req, res) => {
 
         // Sanitize and validate the targetAmount
         const sanitizedAmount = Number(targetAmount);
-        if (isNaN(sanitizedAmount) || sanitizedAmount < 1000 || sanitizedAmount > 10000) {
-            return res.status(400).json({ message: "Please provide a valid target amount between $1000 and $10000." });
+        if (isNaN(sanitizedAmount) || sanitizedAmount < 1000 || sanitizedAmount > 3000) {
+            return res.status(400).json({ message: "Please provide a valid target amount between $1000 and $3000." });
         }
 
         // Check if the user already has an active donation link
@@ -210,6 +210,11 @@ exports.toggleDonationLinkStatus = async (req, res) => {
             return res.status(403).json({ message: "Unauthorized to change this donation link" });
         }
 
+        // Check if the donation link is in a state that can be toggled
+        if (!['active', 'inactive'].includes(donationLink.status)) {
+            return res.status(400).json({ message: "Cannot change status of this donation link" });
+        }
+
         // Toggle the status
         donationLink.status = donationLink.status === 'active' ? 'inactive' : 'active';
         await donationLink.save();
@@ -232,6 +237,7 @@ exports.toggleDonationLinkStatus = async (req, res) => {
         res.status(500).json({ message: "Internal server error", error: error.message });
     }
 };
+
 
 
 
