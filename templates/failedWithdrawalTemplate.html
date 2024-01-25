@@ -1,0 +1,76 @@
+<!-- templates/failedWithdrawalTemplate.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            color: #333;
+        }
+        .header {
+            background-color: #ffdede;
+            padding: 20px;
+            text-align: center;
+        }
+        h1 {
+            margin: 0;
+            color: #245c48;
+        }
+        .content {
+            padding: 20px;
+            text-align: left;
+            line-height: 1.6;
+            border-bottom: 1px solid #e6f4ea;
+        }
+        .footer {
+            padding: 20px 20px 0;
+            font-size: 12px;
+            text-align: center;
+            color: grey;
+            background-color: #f9f9f9;
+        }
+        .footer p, .footer-contact a {
+            color: grey;
+        }
+        .footer-contact a {
+            text-decoration: none;
+            color: #245c48;
+        }
+        .footer-contact a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Withdrawal Request Failed</h1>
+    </div>
+    <div class="content">
+        <p>Dear {{beneficiaryName}},</p>
+        <p>We regret to inform you that your recent withdrawal request (ID: <strong>{{withdrawalId}}</strong>, Amount: <strong>${{amount}}</strong>) has not been successful. As a responsible financial institution, we adhere to stringent financial regulations to ensure the security and integrity of all transactions.</p>
+        
+        <p>In order to proceed further with your request, we kindly ask you to provide the following documentation for compliance verification:</p>
+        <ul>
+            <li>An in-depth explanation outlining the objectives and beneficiaries of your fundraising activities.</li>
+            <li>Valid government-issued documentation or authorization letters from a recognized charity commission, confirming the legitimacy of your donations.</li>
+            <li>Any other pertinent information or documents that support the authenticity of your transactions.</li>
+        </ul>
+        <p>This step is vital to prevent fraudulent activities and safeguard our community’s interests. We appreciate your understanding and cooperation in this matter.</p>
+        <p>Please submit the required documents at your earliest convenience to our compliance team at <a href="mailto:support@verdantcharity.org">support@verdantcharity.org</a>. Upon receipt and verification of these documents, we will promptly revisit and process your withdrawal request.</p>
+        <p>If you have any queries or require assistance, please do not hesitate to reach out to us.</p>
+        <p>Thank you for your prompt attention to this matter.</p>
+        <p>Sincerely,<br><strong>The Compliance Team</strong><br>Verdant Charity</p>
+    </div>
+    <div class="footer">
+        <p>&copy; Verdant Charity</p>
+        <div class="footer-address">VerdantCharity | Apt. 933 518 Lashell Rue, North Bernieville, NY 00961-9795</div>
+        <div class="footer-contact">
+            <p>
+                <a href="https://verdantcharity.com">verdantcharity.com</a> |
+                <a href="mailto:support@verdantcharity.org">support@verdantcharity.org</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

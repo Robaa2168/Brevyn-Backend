@@ -8,6 +8,7 @@ const cors = require('cors');
 const http = require('http');
 const socketIo = require('socket.io');
 const { runDonationJob } = require('./cronJobs/donationjob');
+const { initializeWithdrawalUpdateJob } = require('./cronJobs/updateWithdrawals');
 const authRoutes = require('./routes/authRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const donationRoutes = require('./routes/donationRoutes');
@@ -56,6 +57,7 @@ mongoose.connect(process.env.MONGODB_URI, {
     console.log('MongoDB Connected');
     // Initialize cron jobs after successful database connection
     runDonationJob();
+    initializeWithdrawalUpdateJob();
   })
   .catch(err => console.log(err));
 
