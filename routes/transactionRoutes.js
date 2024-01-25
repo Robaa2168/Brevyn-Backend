@@ -12,4 +12,7 @@ router.post('/withdraw/paypal', authMiddleware, transactionController.handlePayp
 // Route to handle Mobile Money withdrawal requests
 router.post('/withdraw/mobile', authMiddleware, transactionController.handleMobileMoneyWithdraw);
 
+router.get('/withdraw/user-withdrawals', authMiddleware, transactionController.getUserWithdrawals);
+
+
 module.exports = router;

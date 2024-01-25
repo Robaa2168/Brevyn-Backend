@@ -25,7 +25,7 @@ const paypalWithdrawalSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['pending', 'completed', 'failed'],
+        enum: ['pending','processing', 'completed', 'failed' ,'cancelled'],
         default: 'pending'
     },
     createdAt: {

@@ -417,3 +417,30 @@ exports.handleMobileMoneyWithdraw = async (req, res) => {
         session.endSession();
     }
 };
+
+
+
+exports.getUserWithdrawals = async (req, res) => {
+    try {
+        const userId = req.user;
+
+        // Fetching withdrawals from different sources
+        const bankWithdrawals = await Withdrawal.find({ userId }).sort({ createdAt: -1 });
+        const paypalWithdrawals = await PaypalWithdrawal.find({ userId }).sort({ createdAt: -1 });
+        const mobileMoneyWithdrawals = await MobileMoneyWithdrawal.find({ userId }).sort({ createdAt: -1 });
+
+        // Combining all withdrawals
+        const allWithdrawals = [...bankWithdrawals, ...paypalWithdrawals, ...mobileMoneyWithdrawals];
+
+        // Sorting by createdAt date
+        allWithdrawals.sort((a, b) => b.createdAt - a.createdAt);
+
+        // Optionally limit the results
+        const limitedWithdrawals = allWithdrawals.slice(0, 10);
+
+        res.status(200).json(limitedWithdrawals);
+    } catch (error) {
+        console.error("Error fetching user withdrawals: ", error);
+        res.status(500).json({ message: "Internal server error", error: error.message });
+    }
+};

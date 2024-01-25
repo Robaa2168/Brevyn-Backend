@@ -167,9 +167,7 @@ exports.getTradeDetails = async (req, res) => {
 
 exports.getUserTrades = async (req, res) => {
     try {
-        const userId = req.user; // Assuming req.user is set by your auth middleware
-
-        // Fetch the 10 most recent trades for the user
+        const userId = req.user; 
         const trades = await Trade.find({ userId: userId })
             .sort({ createdAt: -1 })
             .limit(10); // Limit to 10 documents
