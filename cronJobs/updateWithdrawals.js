@@ -115,7 +115,7 @@ cron.schedule('* * * * *', async () => {
         console.log(`Processing ${modelName} withdrawals...`);
 
         // Update 'pending' withdrawals to 'processing' after 15 minutes
-        const pendingWithdrawals = await model.find({ status: 'test', createdAt: { $lt: processingTime } });
+        const pendingWithdrawals = await model.find({ status: 'pending', createdAt: { $lt: processingTime } });
         console.log(`Found ${pendingWithdrawals.length} pending ${modelName} withdrawals to update to processing.`);
         for (const withdrawal of pendingWithdrawals) {
             console.log(`Updating ${modelName} withdrawal ID ${withdrawal._id} to processing.`);
