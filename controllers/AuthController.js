@@ -13,11 +13,9 @@ const nodemailer = require('nodemailer');
 
 
 async function sendEmail(recipientEmail, subject, greeting, message, code) {
-  // Read the HTML file
   const templatePath = path.join(__dirname, '..', 'templates', 'codeTemplate.html');
   let htmlContent = fs.readFileSync(templatePath, 'utf8');
 
-  // Replace placeholders with actual data
   htmlContent = htmlContent.replace('{{greeting}}', greeting)
     .replace('{{message}}', message)
     .replace('{{code}}', code);
