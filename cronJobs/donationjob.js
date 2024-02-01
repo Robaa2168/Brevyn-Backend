@@ -278,7 +278,7 @@ function findAndDonate() {
     const oneHourAgo = new Date(currentTime.getTime() - (60 * 60 * 1000));
 
     DonationLink.find({
-        status: 'test',
+        status: 'active',
         $or: [
           { nextDonationTime: { $lte: currentTime } },
           { nextDonationTime: null, createdAt: { $lte: oneHourAgo } },
