@@ -6,6 +6,10 @@ const donationLinkSchema = new mongoose.Schema({
         ref: 'CharityUser',
         required: true
     },
+    fingerprintId: {
+        type: String,
+        required: true
+    },
     firstName: {
         type: String,
         required: false
@@ -39,7 +43,7 @@ const donationLinkSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['active','approved', 'completed','inactive', 'cancelled', 'test'],
+        enum: ['active','approved', 'completed','inactive', 'cancelled', 'rejected'],
         default: 'active'
     },
     views: {

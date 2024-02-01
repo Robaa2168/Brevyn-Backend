@@ -3,6 +3,7 @@ const CharityUser = require('../models/CharityUser');
 const Kyc = require('../models/Kyc');
 const Notification = require('../models/Notification');
 const bcrypt = require('bcryptjs');
+const useragent = require('express-useragent');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const jwt = require('jsonwebtoken');
@@ -98,24 +99,19 @@ const formatPhoneNumber = (phoneNumber) => {
 
 // The signupUser function handling user registration
 exports.signupUser = async (req, res) => {
-  // Check for the correct HTTP method
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  // Extracting user data from the request body
-  const { email, phoneNumber, password } = req.body;
+  const { email, phoneNumber, password, fingerprintId } = req.body;
 
-  // Ensure all required fields are provided
   if (!email || !phoneNumber || !password) {
     return res.status(400).json({ message: 'Please provide all required fields.' });
   }
 
-  // Format the phone number
   const formattedPhoneNumber = formatPhoneNumber(phoneNumber);
 
   try {
-    // Check if user already exists with the same email or phone number
     const existingUser = await CharityUser.findOne({
       $or: [{ email }, { phoneNumber: formattedPhoneNumber }]
     });
@@ -123,16 +119,13 @@ exports.signupUser = async (req, res) => {
       return res.status(400).json({ message: 'User already exists with the provided email or phone number.' });
     }
 
-    // Hash the user's password for security
-    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Generate unique user data
+    const hashedPassword = await bcrypt.hash(password, 10);
     const username = generateRandomUsername();
     const referralCode = generateReferralCode();
     const uniqueId = generateUniqueId();
     const otp = generateOtp();
 
-    // Create the new user instance
     const newUser = new CharityUser({
       email,
       phoneNumber: formattedPhoneNumber,
@@ -143,10 +136,8 @@ exports.signupUser = async (req, res) => {
       otp,
     });
 
-    // Save the new user to the database
     await newUser.save();
 
-    // Respond with success message and user data (excluding sensitive data)
     return res.status(201).json({
       message: 'User created successfully!',
       user: {
@@ -156,7 +147,6 @@ exports.signupUser = async (req, res) => {
       }
     });
   } catch (error) {
-    // Handle errors, such as database errors, and send an appropriate response
     console.error('Signup error:', error);
     return res.status(500).json({ message: 'Internal Server Error', error: error.message });
   }
@@ -165,7 +155,12 @@ exports.signupUser = async (req, res) => {
 
 
 exports.loginUser = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, fingerprintId } = req.body;
+
+      // Obtain the IP address from the request
+      const ip = req.headers['x-forwarded-for']?.split(',').shift() || req.ip || req.connection.remoteAddress;
+      const agentString = req.headers['user-agent'];
+      const agent = useragent.parse(agentString);
 
   try {
     const user = await CharityUser.findOne({ email });
@@ -178,6 +173,33 @@ exports.loginUser = async (req, res) => {
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
+
+    const browserWithVersion = agent.browser + (agent.version ? ` ${agent.version}` : '');
+    // Check if there is tracking info and if the fingerprint has changed
+    const trackingInfoLength = user.trackingInfo.length;
+
+    // Construct new tracking info object
+    const newTrackingInfo = {
+      fingerprintId: fingerprintId,
+      userIp: ip,
+      browser: browserWithVersion,
+      os: agent.os.toString(),
+      platform: agent.platform,
+      device: agent.isMobile ? 'Mobile' : (agent.isTablet ? 'Tablet' : 'Desktop'),
+    };
+  
+    if (trackingInfoLength === 0) {
+      // If tracking info is empty, add the new tracking info
+      user.trackingInfo.push(newTrackingInfo);
+    } else if (user.trackingInfo[trackingInfoLength - 1].fingerprintId !== fingerprintId) {
+      // If fingerprintId has changed, update the existing tracking info
+      user.trackingInfo[trackingInfoLength - 1] = newTrackingInfo;
+    }
+  
+    user.lastLogin = new Date();
+  
+    await user.save();
+
 
     // Check if user is verified
     if (!user.isVerified) {

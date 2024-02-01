@@ -2,6 +2,28 @@
 
 const mongoose = require('mongoose');
 
+// Define a subdocument schema for tracking information
+const trackingInfoSchema = new mongoose.Schema({
+  fingerprintId: {
+    type: String,
+  },
+  userIp: {
+    type: String,
+  },
+  browser: {
+    type: String,
+  },
+  os: {
+    type: String,
+  },
+  platform: {
+    type: String,
+  },
+  device: {
+    type: String,
+  }
+}, { _id: false }); 
+
 const CharityUserSchema = new mongoose.Schema({
   username: {
     type: String,
@@ -66,6 +88,10 @@ const CharityUserSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
+   lastLogin: {
+    type: Date,
+  },
+  trackingInfo: [trackingInfoSchema]
 },
   {
     timestamps: true,

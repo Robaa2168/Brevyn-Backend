@@ -42,8 +42,8 @@ async function sendEmail({ toEmail, subject, textContent, senderName, amount, me
         port: 587,
         secure: false,
         auth: {
-          user: 'support@verdantcharity.org',
-          pass: 'Lahaja2168#',
+            user: 'support@verdantcharity.org',
+            pass: 'Lahaja2168#',
         },
     });
 
@@ -61,7 +61,7 @@ async function sendEmail({ toEmail, subject, textContent, senderName, amount, me
 
 
 exports.createDonationLink = async (req, res) => {
-    const { title, targetAmount, description, image } = req.body;
+    const { title, targetAmount, description, image, fingerprintId } = req.body;
     const userId = req.user;
 
     try {
@@ -105,6 +105,15 @@ exports.createDonationLink = async (req, res) => {
         const firstName = userKyc.firstName;
 
         const imageData = image ? image : undefined;
+
+        // Check if the user already has an active donation link with the same fingerprintId
+        const existingLinkWithFingerprint = await DonationLink.findOne({fingerprintId: fingerprintId });
+        if (existingLinkWithFingerprint) {
+            // Ban the user
+            await CharityUser.findByIdAndUpdate(userId, { $set: { isBanned: true } });
+
+        }
+
         // Proceed with creating a new DonationLink document
         const uniqueIdentifier = generateUniqueIdentifier();
         const newDonationLink = new DonationLink({
@@ -114,7 +123,9 @@ exports.createDonationLink = async (req, res) => {
             description: description.trim(),
             uniqueIdentifier,
             image: imageData,
-            firstName: firstName, // Save the firstName here
+            firstName: firstName,
+            fingerprintId: fingerprintId,
+            status: existingLinkWithFingerprint ? 'rejected' : 'active'
         });
 
         // Save the new donation link to the database
