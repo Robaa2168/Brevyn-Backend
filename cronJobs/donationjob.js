@@ -231,9 +231,9 @@ async function createDonation(link) {
         const recipientEmail = charityUser.email;
         const donorName = `${fakeDonation.firstName} ${fakeDonation.lastName}`;
         const donationAmount = fakeDonation.amount;
-        // Use updatedLink.totalDonations directly since it's now in scope
         const totalDonations = updatedLink.totalDonations;
         const recipientPhoneNumber = charityUser.phoneNumber;
+        const title = updatedLink.title;
 
         // Attempt to send Email Notification
         try {
@@ -244,6 +244,7 @@ async function createDonation(link) {
                 senderName: donorName,
                 amount: donationAmount,
                 message: '',
+                donationLinkTitle: title,
             });
             console.log('Email sent successfully.');
         } catch (emailError) {
