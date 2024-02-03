@@ -15,6 +15,10 @@ const withdrawalSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
+    currency: {
+        type: String,
+        required: true
+    },
     bank: {
         type: String,
         required: true

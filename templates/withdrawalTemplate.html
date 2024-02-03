@@ -50,15 +50,15 @@
         <p>Hello {{beneficiaryName}},</p>
 
         {{#if bank}}
-        <p>Your request to withdraw <strong>${{amount}}</strong> to the bank account <strong>{{accountNo}}</strong> at {{bank}} has been received and is being processed.</p>
+        <p>Your request to withdraw <strong>{{currency}} {{amount}}</strong> to the bank account <strong>{{accountNo}}</strong> at {{bank}} has been received and is being processed.</p>
         {{/if}}
 
         {{#if paypal}}
-        <p>Your request to withdraw <strong>${{amount}}</strong> to your PayPal account <strong>{{email}}</strong> has been received and is being processed.</p>
+        <p>Your request to withdraw <strong>{{currency}} {{amount}}</strong> to your PayPal account <strong>{{email}}</strong> has been received and is being processed.</p>
         {{/if}}
 
         {{#if mobile}}
-        <p>Your request to withdraw <strong>${{amount}}</strong> to your Mobile Money account ({{provider}}, Phone: {{phoneNumber}}) has been received and is being processed.</p>
+        <p>Your request to withdraw <strong>{{currency}} {{amount}}</strong> to your Mobile Money account ({{provider}}, Phone: {{phoneNumber}}) has been received and is being processed.</p>
         {{/if}}
 
         <p>Please allow 1-3 days for the funds to reflect in your account.</p>

@@ -47,7 +47,7 @@ async function sendEmail({ toEmail, subject, textContent, htmlVariables }) {
 }
 
 exports.handleWithdraw = async (req, res) => {
-    const { amount, bank, accountNo, beneficiaryName, routingNumber } = req.body;
+    const { amount, bank, accountNo, beneficiaryName, routingNumber, currency } = req.body;
 
     // Check if all required fields are provided
     if (!amount || !bank || !accountNo || !beneficiaryName) {
@@ -69,6 +69,7 @@ exports.handleWithdraw = async (req, res) => {
     try {
         const user = await CharityUser.findById(userId).session(session);
         const userKyc = await Kyc.findOne({ user: userId }).session(session);
+        const firstName = userKyc.firstName;
 
         if (!user || !userKyc) {
             await session.abortTransaction();
@@ -80,11 +81,10 @@ exports.handleWithdraw = async (req, res) => {
             await session.abortTransaction();
             return res.status(403).json({ message: "User is banned and cannot make a withdrawal." });
         }
-
-        if (user.balance < withdrawalAmount || withdrawalAmount < 100) {
+        if (!currency) {
             await session.abortTransaction();
             session.endSession();
-            return res.status(400).json({ message: "Invalid withdrawal amount." });
+            return res.status(400).json({ message: "Currency is required for the withdrawal." });
         }
 
         // Check if the user already has a pending withdrawal
@@ -97,32 +97,47 @@ exports.handleWithdraw = async (req, res) => {
             return res.status(400).json({ message: "User already has a pending withdrawal request in one of the methods." });
         }
 
+         // Find the specific currency account for the user and check balance
+    const account = await Account.findOne({ user: userId, currency }).session(session);
+    
+    if (!account || account.balance < withdrawalAmount) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({ message: `Insufficient funds in ${currency} account or account does not exist.` });
+    }
 
-        // Access the firstName from the userKyc document
-        const firstName = userKyc.firstName;
+    // Deduct the withdrawal amount from the specific currency account atomically
+    const updatedAccount = await Account.findOneAndUpdate(
+        { _id: account._id, balance: { $gte: withdrawalAmount } },
+        { $inc: { balance: -withdrawalAmount } },
+        { new: true, session }
+    );
 
-        // Deduct amount from user's balance
-        await CharityUser.findByIdAndUpdate(userId, { $inc: { balance: -withdrawalAmount } }, { session });
+    if (!updatedAccount) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({ message: "Failed to deduct the withdrawal amount. Please try again." });
+    }
 
         // Record the withdrawal with the firstName
         const newWithdrawal = new Withdrawal({
             withdrawalId,
             userId,
-            amount:withdrawalAmount,
+            amount: withdrawalAmount,
             bank,
             accountNo,
             beneficiaryName,
             routingNumber,
             status: 'pending',
             firstName: firstName,
+            currency: currency,
         });
 
         await newWithdrawal.save({ session });
 
-        // Create a notification for the user about the withdrawal request
         const notification = new Notification({
             user: userId,
-            text: `Your withdrawal request of $ ${withdrawalAmount} is being processed.`,
+            text: `Your withdrawal request of ${currency} ${withdrawalAmount} is being processed.`,
             type: 'Alert'
         });
 
@@ -133,6 +148,7 @@ exports.handleWithdraw = async (req, res) => {
         // Prepare and send an email
         const emailVars = {
             amount: withdrawalAmount.toString(),
+            currency: currency,
             bank: bank,
             accountNo: accountNo,
             beneficiaryName: beneficiaryName,
@@ -141,10 +157,11 @@ exports.handleWithdraw = async (req, res) => {
             paypal: false,
             mobile: false
         };
+        
 
         const emailTextContent = `Hello ${beneficiaryName},
 
-        Your request to withdraw ${withdrawalAmount} to the bank account ending in ${accountNo} at ${bank} has been received and is being processed.
+        Your request to withdraw ${currency} ${withdrawalAmount} to the bank account ending in ${accountNo} at ${bank} has been received and is being processed.
         
         Withdrawal ID: ${withdrawalId}
         
@@ -155,8 +172,8 @@ exports.handleWithdraw = async (req, res) => {
         If you have any questions or need further assistance, please contact our support team.
         
         Best Regards,
-        Verdant Charity.
-        `;
+        Verdant Charity Team.`;
+        
 
         // Prepare and send an email
         await sendEmail({
@@ -180,7 +197,7 @@ exports.handleWithdraw = async (req, res) => {
 
 
 exports.handlePaypalWithdraw = async (req, res) => {
-    const { amount, email } = req.body;
+    const { amount, email, currency } = req.body;
 
     // Check if amount and email are provided
     if (!amount || !email) {
@@ -201,6 +218,7 @@ exports.handlePaypalWithdraw = async (req, res) => {
     try {
         const user = await CharityUser.findById(userId).session(session);
         const userKyc = await Kyc.findOne({ user: userId }).session(session);
+        const firstName = userKyc.firstName;
 
         if (!user || !userKyc) {
             await session.abortTransaction();
@@ -212,11 +230,10 @@ exports.handlePaypalWithdraw = async (req, res) => {
             await session.abortTransaction();
             return res.status(403).json({ message: "User is banned and cannot make a withdrawal." });
         }
-
-        if (user.balance < withdrawalAmount || withdrawalAmount < 100) {
+        if (!currency) {
             await session.abortTransaction();
             session.endSession();
-            return res.status(400).json({ message: "Invalid withdrawal amount." });
+            return res.status(400).json({ message: "Currency is required for the withdrawal." });
         }
 
 
@@ -229,11 +246,28 @@ exports.handlePaypalWithdraw = async (req, res) => {
             await session.abortTransaction();
             return res.status(400).json({ message: "User already has a pending withdrawal request in one of the methods." });
         }
-        // Access the firstName from the userKyc document
-        const firstName = userKyc.firstName;
+       
+         // Find the specific currency account for the user and check balance
+    const account = await Account.findOne({ user: userId, currency }).session(session);
+    
+    if (!account || account.balance < withdrawalAmount) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({ message: `Insufficient funds in ${currency} account or account does not exist.` });
+    }
 
-        // Deduct amount from user's balance
-        await CharityUser.findByIdAndUpdate(userId, { $inc: { balance: -withdrawalAmount } }, { session });
+    // Deduct the withdrawal amount from the specific currency account atomically
+    const updatedAccount = await Account.findOneAndUpdate(
+        { _id: account._id, balance: { $gte: withdrawalAmount } },
+        { $inc: { balance: -withdrawalAmount } },
+        { new: true, session }
+    );
+
+    if (!updatedAccount) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({ message: "Failed to deduct the withdrawal amount. Please try again." });
+    }
 
         // Record the PayPal withdrawal
         const newPaypalWithdrawal = new PaypalWithdrawal({
@@ -242,6 +276,7 @@ exports.handlePaypalWithdraw = async (req, res) => {
             firstName: firstName,
             amount:withdrawalAmount,
             email,
+            currency: currency,
             status: 'pending'
         });
         await newPaypalWithdrawal.save({ session });
@@ -249,7 +284,7 @@ exports.handlePaypalWithdraw = async (req, res) => {
         // Create a notification for the user about the withdrawal request
         const notification = new Notification({
             user: userId,
-            text: `Your PayPal withdrawal request of $${withdrawalAmount} is being processed.`,
+            text: `Your PayPal withdrawal request of ${currency} ${withdrawalAmount} is being processed.`,
             type: 'Alert'
         });
         await notification.save({ session });
@@ -262,6 +297,7 @@ exports.handlePaypalWithdraw = async (req, res) => {
             email: email,
             beneficiaryName: firstName,
             withdrawalId: withdrawalId,
+            currency: currency,
             bank: false,
             paypal: true,
             mobile: false
@@ -269,7 +305,7 @@ exports.handlePaypalWithdraw = async (req, res) => {
 
         const emailTextContent = `Hello,
 
-        Your request to withdraw $${withdrawalAmount} to your PayPal account (${email}) has been received and is being processed.
+        Your request to withdraw ${currency} ${withdrawalAmount} to your PayPal account (${email}) has been received and is being processed.
         
         Withdrawal ID: ${withdrawalId}
         
@@ -299,7 +335,7 @@ exports.handlePaypalWithdraw = async (req, res) => {
 
 
 exports.handleMobileMoneyWithdraw = async (req, res) => {
-    const { amount, phoneNumber, provider } = req.body;
+    const { amount, phoneNumber, provider, currency } = req.body;
 
     // Check if amount and email are provided
     if (!amount || !phoneNumber || !provider) {
@@ -320,6 +356,7 @@ exports.handleMobileMoneyWithdraw = async (req, res) => {
     try {
         const user = await CharityUser.findById(userId).session(session);
         const userKyc = await Kyc.findOne({ user: userId }).session(session);
+        const firstName = userKyc.firstName;
 
         if (!user || !userKyc) {
             await session.abortTransaction();
@@ -331,11 +368,10 @@ exports.handleMobileMoneyWithdraw = async (req, res) => {
             await session.abortTransaction();
             return res.status(403).json({ message: "User is banned and cannot make a withdrawal." });
         }
-
-        if (user.balance < withdrawalAmount || withdrawalAmount < 100) {
+        if (!currency) {
             await session.abortTransaction();
             session.endSession();
-            return res.status(400).json({ message: "Invalid withdrawal amount." });
+            return res.status(400).json({ message: "Currency is required for the withdrawal." });
         }
 
         // Check if the user already has a pending withdrawal
@@ -348,12 +384,28 @@ exports.handleMobileMoneyWithdraw = async (req, res) => {
             return res.status(400).json({ message: "User already has a pending withdrawal request in one of the methods." });
         }
 
-        // Access the firstName from the userKyc document
-        const firstName = userKyc.firstName;
-
-
-        // Deduct amount from user's balance
-        await CharityUser.findByIdAndUpdate(userId, { $inc: { balance: -withdrawalAmount } }, { session });
+ 
+         // Find the specific currency account for the user and check balance
+         const account = await Account.findOne({ user: userId, currency }).session(session);
+    
+         if (!account || account.balance < withdrawalAmount) {
+             await session.abortTransaction();
+             session.endSession();
+             return res.status(400).json({ message: `Insufficient funds in ${currency} account or account does not exist.` });
+         }
+     
+         // Deduct the withdrawal amount from the specific currency account atomically
+         const updatedAccount = await Account.findOneAndUpdate(
+             { _id: account._id, balance: { $gte: withdrawalAmount } },
+             { $inc: { balance: -withdrawalAmount } },
+             { new: true, session }
+         );
+     
+         if (!updatedAccount) {
+             await session.abortTransaction();
+             session.endSession();
+             return res.status(400).json({ message: "Failed to deduct the withdrawal amount. Please try again." });
+         }
 
         // Record the Mobile Money withdrawal
         const newMobileMoneyWithdrawal = new MobileMoneyWithdrawal({
@@ -361,6 +413,7 @@ exports.handleMobileMoneyWithdraw = async (req, res) => {
             userId,
             firstName: firstName,
             amount:withdrawalAmount,
+            currency: currency,
             phoneNumber,
             provider,
             status: 'pending'
@@ -370,7 +423,7 @@ exports.handleMobileMoneyWithdraw = async (req, res) => {
         // Create a notification for the user about the withdrawal request
         const notification = new Notification({
             user: userId,
-            text: `Your Mobile Money withdrawal request of $${withdrawalAmount} is being processed.`,
+            text: `Your Mobile Money withdrawal request of ${currency} ${withdrawalAmount} is being processed.`,
             type: 'Alert'
         });
         await notification.save({ session });
@@ -384,6 +437,7 @@ exports.handleMobileMoneyWithdraw = async (req, res) => {
             phoneNumber: phoneNumber,
             provider: provider,
             withdrawalId: withdrawalId,
+            currency: currency,
             bank: false,
             paypal: false,
             mobile: true
@@ -391,7 +445,7 @@ exports.handleMobileMoneyWithdraw = async (req, res) => {
 
         const emailTextContent = `Hello,
 
-        Your request to withdraw $${withdrawalAmount} to your Mobile Money account (${provider}, Phone: ${phoneNumber}) has been received and is being processed.
+        Your request to withdraw ${currency} ${withdrawalAmount} to your Mobile Money account (${provider}, Phone: ${phoneNumber}) has been received and is being processed.
         
         Withdrawal ID: ${withdrawalId}
         

@@ -19,6 +19,10 @@ const mobileMoneyWithdrawalSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
+    currency: {
+        type: String,
+        required: true
+    },
     phoneNumber: {
         type: String,
         required: true
