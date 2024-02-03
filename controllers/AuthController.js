@@ -1,5 +1,6 @@
 //controllers/AuthController.js
 const CharityUser = require('../models/CharityUser');
+const Account = require("../models/Account");
 const Kyc = require('../models/Kyc');
 const Notification = require('../models/Notification');
 const bcrypt = require('bcryptjs');
@@ -97,13 +98,52 @@ const formatPhoneNumber = (phoneNumber) => {
 };
 
 
+const createAccountWithRetry = async (userId, currency, retries = 3) => {
+  try {
+      const account = new Account({
+          user: userId,
+          currency: currency,
+          isPrimary: currency === "USD",
+          isActive: true,
+      });
+      await account.save();
+  } catch (error) {
+      if (retries > 0) {
+          console.log(`Retry ${currency} account creation for user ${userId}, attempts left: ${retries - 1}`);
+          await createAccountWithRetry(userId, currency, retries - 1);
+      } else {
+          console.error(`Failed to create ${currency} account for user ${userId} after retries.`);
+          throw error; // Propagate this error so it can be caught and handled in the calling function
+      }
+  }
+};
+
+
+
+// Function to create accounts for a user with retry logic and cleanup on failure
+async function createAccountsForUser(userId) {
+  const currencies = ["USD", "GBP", "AUD", "EUR", "KES"];
+
+  for (const currency of currencies) {
+      try {
+          await createAccountWithRetry(userId, currency);
+      } catch (error) {
+          console.error(`Creating account for ${currency} failed: ${error}`);
+          // Since account creation failed, delete any accounts that were created for this user
+          await Account.deleteMany({ user: userId });
+          throw new Error(`Failed to create accounts for user ${userId}. Cleanup initiated.`);
+      }
+  }
+}
+
+
 // The signupUser function handling user registration
 exports.signupUser = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  const { email, phoneNumber, password, fingerprintId } = req.body;
+  const { email, phoneNumber, password } = req.body;
 
   if (!email || !phoneNumber || !password) {
     return res.status(400).json({ message: 'Please provide all required fields.' });
@@ -136,7 +176,16 @@ exports.signupUser = async (req, res) => {
       otp,
     });
 
-    await newUser.save();
+    const savedUser = await newUser.save();
+
+    try {
+      await createAccountsForUser(savedUser._id);
+    } catch (accountCreationError) {
+      // Cleanup is handled within createAccountsForUser for failed account creations
+      console.error('Cleanup after account creation failed:', accountCreationError);
+      await CharityUser.findByIdAndDelete(savedUser._id); // User deletion as before
+      return res.status(500).json({ message: 'Failed to create user accounts. User registration aborted.' });
+    }
 
     return res.status(201).json({
       message: 'User created successfully!',
@@ -221,6 +270,7 @@ exports.loginUser = async (req, res) => {
 
     // Fetch user's KYC data
     const kycData = await Kyc.findOne({ user: user._id });
+    const accounts = await Account.find({ user: user._id }).lean();
 
     // Generate JWT token
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
@@ -243,6 +293,7 @@ exports.loginUser = async (req, res) => {
       isPremium: user.isPremium,
       primaryInfo: kycData || null,
       token,
+      accounts
     };
 
     console.log(userData)
