@@ -59,6 +59,11 @@ const CharityUserSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  payId: {
+    type: String,
+    required: true,
+    unique: true,
+  },
   isVerified: {
     type: Boolean,
     default: false,

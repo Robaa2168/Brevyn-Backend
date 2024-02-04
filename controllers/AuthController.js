@@ -165,6 +165,7 @@ exports.signupUser = async (req, res) => {
     const referralCode = generateReferralCode();
     const uniqueId = generateUniqueId();
     const otp = generateOtp();
+    const payId = generateOtp();
 
     const newUser = new CharityUser({
       email,
@@ -174,6 +175,7 @@ exports.signupUser = async (req, res) => {
       referralCode,
       uniqueId,
       otp,
+      payId,
     });
 
     const savedUser = await newUser.save();
