@@ -203,20 +203,7 @@ exports.performCurrencyConversion = async (req, res) => {
                 console.error("Email sending failed:", error);
             }
             
-            try {
-                // Asynchronously send SMS notification
-                await sendConversionSMS(
-                    user.phoneNumber,
-                    fromCurrency,
-                    toCurrency,
-                    amount,
-                    convertedAmount
-                );
-            } catch (error) {
-                console.error("SMS sending failed:", error);
-            }
-            
-    
+          
             return res.status(201).json({ message: 'Conversion successful', data: conversionRecord });
         } catch (error) {
             if (session) await session.abortTransaction();

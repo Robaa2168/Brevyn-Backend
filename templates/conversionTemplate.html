@@ -1,22 +1,79 @@
-<!-- conversionTemplate.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversion Notification</title>
     <style>
-        /* Add your CSS styles here */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: #ffffff;
+            padding: 20px;
+        }
+        .header {
+            background: #4caf50; /* Changed to emerald green */
+            color: #ffffff;
+            padding: 10px;
+            text-align: center;
+        }
+        .content {
+            margin-top: 20px;
+        }
+        ul {
+            background-color: rgba(0, 128, 0, 0.1); /* Faded emerald green background */
+            padding: 10px;
+            list-style-position: inside; /* Adjust bullets to be inside the background */
+            border-radius: 5px;
+        }
+        .footer {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            font-size: 14px;
+            text-align: center;
+            color: #999;
+        }
+        .footer-address, .footer-contact a {
+            color: #999;
+        }
+        .footer-contact a {
+            text-decoration: none;
+        }
+        .footer-contact a:hover {
+            text-decoration: underline;
+        }
+        .transaction-image {
+            text-align: center; /* Center the image */
+            margin: 20px 0; /* Provide some spacing around the image */
+        }
     </style>
 </head>
 <body>
-    <div class="email-container">
-        <h1>Conversion Successful</h1>
-        <p>Dear {{ firstName }},</p>
-        <p>Your conversion from {{ fromCurrency }} to {{ toCurrency }} was successful.</p>
-        <p>Amount Converted: {{ amount }} {{ fromCurrency }}</p>
-        <p>Converted Amount: {{ convertedAmount }} {{ toCurrency }}</p>
-        <p>Conversion Rate: 1 {{ fromCurrency }} = {{ conversionRate }} {{ toCurrency }}</p>
-        <p>Transaction ID: {{ transactionId }}</p>
+    <div class="container">
+        <div class="header">
+            Currency Conversion Completed
+        </div>
+        <div class="content">
+            <p>Hello {{ firstName }},</p>
+        
+            <p>Your request to convert {{ amount }} {{ fromCurrency }} to {{ toCurrency }} has been successfully processed with the following details:</p>
+            <ul>
+                <li>Converted Amount: {{ convertedAmount }} {{ toCurrency }}</li>
+                <li>Conversion Rate: 1 {{ fromCurrency }} = {{ conversionRate }} {{ toCurrency }}</li>
+                <li>Transaction ID: {{ transactionId }}</li>
+            </ul>
+            <p>If you have any questions or concerns, please contact our support team at support@verdantcharity.org.</p>
+            <div class="transaction-image">
+                <img src="https://icons.veryicon.com/png/o/miscellaneous/color-work-icon/payment-16.png" alt="Transaction Successful" />
+            </div>
+        </div>
         <div class="footer">
             <p>&copy; Verdant Charity {{ currentYear }}</p>
             <div class="footer-address">VerdantCharity | Apt. 933 518 Lashell Rue, North Bernieville, NY 00961-9795</div>
