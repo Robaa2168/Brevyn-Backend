@@ -56,6 +56,8 @@ async function updateToProcessing(withdrawal) {
 
 
 async function processFailedWithdrawal(withdrawal, model, userId) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
     try {
         // Mark the withdrawal as failed
         withdrawal.status = 'failed';

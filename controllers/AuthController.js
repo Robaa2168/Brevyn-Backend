@@ -289,7 +289,7 @@ exports.loginUser = async (req, res) => {
       isVerified: user.isVerified,
       points: user.points,
       balance: user.balance,
-      otp: user.otp,
+      payId: user.payId,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       isPremium: user.isPremium,

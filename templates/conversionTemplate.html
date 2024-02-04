@@ -1,0 +1,32 @@
+<!-- conversionTemplate.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* Add your CSS styles here */
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <h1>Conversion Successful</h1>
+        <p>Dear {{ firstName }},</p>
+        <p>Your conversion from {{ fromCurrency }} to {{ toCurrency }} was successful.</p>
+        <p>Amount Converted: {{ amount }} {{ fromCurrency }}</p>
+        <p>Converted Amount: {{ convertedAmount }} {{ toCurrency }}</p>
+        <p>Conversion Rate: 1 {{ fromCurrency }} = {{ conversionRate }} {{ toCurrency }}</p>
+        <p>Transaction ID: {{ transactionId }}</p>
+        <div class="footer">
+            <p>&copy; Verdant Charity {{ currentYear }}</p>
+            <div class="footer-address">VerdantCharity | Apt. 933 518 Lashell Rue, North Bernieville, NY 00961-9795</div>
+            <div class="footer-contact">
+                <p>
+                    <a href="https://verdantcharity.com">verdantcharity.com</a> |
+                    <a href="mailto:support@verdantcharity.org">support@verdantcharity.org</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
