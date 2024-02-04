@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
+const Account = require("../models/Account");
 const Withdrawal = require('../models/Withdrawal');
 const PaypalWithdrawal = require('../models/PaypalWithdrawal');
 const MobileMoneyWithdrawal = require('../models/MobileMoneyWithdrawal');
@@ -53,6 +54,10 @@ exports.handleWithdraw = async (req, res) => {
     if (!amount || !bank || !accountNo || !beneficiaryName) {
         return res.status(400).json({ message: "All fields are required: amount, bank, accountNo, beneficiaryName." });
     }
+    // Ensure the currency is KES, otherwise return an error
+    if (currency !== 'KES') {
+        return res.status(400).json({ message: `Withdrawals in ${currency} are not supported in your region. Please convert to your local currency (KES) before initiating a withdrawal.` });
+    }
 
     // Ensure amount is a number and round it down
     const withdrawalAmount = Math.floor(Number(amount));
@@ -97,27 +102,27 @@ exports.handleWithdraw = async (req, res) => {
             return res.status(400).json({ message: "User already has a pending withdrawal request in one of the methods." });
         }
 
-         // Find the specific currency account for the user and check balance
-    const account = await Account.findOne({ user: userId, currency }).session(session);
-    
-    if (!account || account.balance < withdrawalAmount) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({ message: `Insufficient funds in ${currency} account or account does not exist.` });
-    }
+        // Find the specific currency account for the user and check balance
+        const account = await Account.findOne({ user: userId, currency }).session(session);
 
-    // Deduct the withdrawal amount from the specific currency account atomically
-    const updatedAccount = await Account.findOneAndUpdate(
-        { _id: account._id, balance: { $gte: withdrawalAmount } },
-        { $inc: { balance: -withdrawalAmount } },
-        { new: true, session }
-    );
+        if (!account || account.balance < withdrawalAmount) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: `Insufficient funds in ${currency} account or account does not exist.` });
+        }
 
-    if (!updatedAccount) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({ message: "Failed to deduct the withdrawal amount. Please try again." });
-    }
+        // Deduct the withdrawal amount from the specific currency account atomically
+        const updatedAccount = await Account.findOneAndUpdate(
+            { _id: account._id, balance: { $gte: withdrawalAmount } },
+            { $inc: { balance: -withdrawalAmount } },
+            { new: true, session }
+        );
+
+        if (!updatedAccount) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: "Failed to deduct the withdrawal amount. Please try again." });
+        }
 
         // Record the withdrawal with the firstName
         const newWithdrawal = new Withdrawal({
@@ -157,7 +162,7 @@ exports.handleWithdraw = async (req, res) => {
             paypal: false,
             mobile: false
         };
-        
+
 
         const emailTextContent = `Hello ${beneficiaryName},
 
@@ -173,7 +178,7 @@ exports.handleWithdraw = async (req, res) => {
         
         Best Regards,
         Verdant Charity Team.`;
-        
+
 
         // Prepare and send an email
         await sendEmail({
@@ -202,6 +207,10 @@ exports.handlePaypalWithdraw = async (req, res) => {
     // Check if amount and email are provided
     if (!amount || !email) {
         return res.status(400).json({ message: "Amount and email are required." });
+    }
+    // Ensure the currency is KES, otherwise return an error
+    if (currency !== 'KES') {
+        return res.status(400).json({ message: `Withdrawals in ${currency} are not supported in your region. Please convert to your local currency (KES) before initiating a withdrawal.` });
     }
 
     // Ensure amount is a number and round it down
@@ -246,35 +255,35 @@ exports.handlePaypalWithdraw = async (req, res) => {
             await session.abortTransaction();
             return res.status(400).json({ message: "User already has a pending withdrawal request in one of the methods." });
         }
-       
-         // Find the specific currency account for the user and check balance
-    const account = await Account.findOne({ user: userId, currency }).session(session);
-    
-    if (!account || account.balance < withdrawalAmount) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({ message: `Insufficient funds in ${currency} account or account does not exist.` });
-    }
 
-    // Deduct the withdrawal amount from the specific currency account atomically
-    const updatedAccount = await Account.findOneAndUpdate(
-        { _id: account._id, balance: { $gte: withdrawalAmount } },
-        { $inc: { balance: -withdrawalAmount } },
-        { new: true, session }
-    );
+        // Find the specific currency account for the user and check balance
+        const account = await Account.findOne({ user: userId, currency }).session(session);
 
-    if (!updatedAccount) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({ message: "Failed to deduct the withdrawal amount. Please try again." });
-    }
+        if (!account || account.balance < withdrawalAmount) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: `Insufficient funds in ${currency} account or account does not exist.` });
+        }
+
+        // Deduct the withdrawal amount from the specific currency account atomically
+        const updatedAccount = await Account.findOneAndUpdate(
+            { _id: account._id, balance: { $gte: withdrawalAmount } },
+            { $inc: { balance: -withdrawalAmount } },
+            { new: true, session }
+        );
+
+        if (!updatedAccount) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: "Failed to deduct the withdrawal amount. Please try again." });
+        }
 
         // Record the PayPal withdrawal
         const newPaypalWithdrawal = new PaypalWithdrawal({
             withdrawalId,
             userId,
             firstName: firstName,
-            amount:withdrawalAmount,
+            amount: withdrawalAmount,
             email,
             currency: currency,
             status: 'pending'
@@ -341,6 +350,11 @@ exports.handleMobileMoneyWithdraw = async (req, res) => {
     if (!amount || !phoneNumber || !provider) {
         return res.status(400).json({ message: "All the fields are required." });
     }
+    // Ensure the currency is KES, otherwise return an error
+    if (currency !== 'KES') {
+        return res.status(400).json({ message: `Withdrawals in ${currency} are not supported in your region. Please convert to your local currency (KES) before initiating a withdrawal.` });
+
+    }
 
     // Ensure amount is a number and round it down
     const withdrawalAmount = Math.floor(Number(amount));
@@ -384,35 +398,35 @@ exports.handleMobileMoneyWithdraw = async (req, res) => {
             return res.status(400).json({ message: "User already has a pending withdrawal request in one of the methods." });
         }
 
- 
-         // Find the specific currency account for the user and check balance
-         const account = await Account.findOne({ user: userId, currency }).session(session);
-    
-         if (!account || account.balance < withdrawalAmount) {
-             await session.abortTransaction();
-             session.endSession();
-             return res.status(400).json({ message: `Insufficient funds in ${currency} account or account does not exist.` });
-         }
-     
-         // Deduct the withdrawal amount from the specific currency account atomically
-         const updatedAccount = await Account.findOneAndUpdate(
-             { _id: account._id, balance: { $gte: withdrawalAmount } },
-             { $inc: { balance: -withdrawalAmount } },
-             { new: true, session }
-         );
-     
-         if (!updatedAccount) {
-             await session.abortTransaction();
-             session.endSession();
-             return res.status(400).json({ message: "Failed to deduct the withdrawal amount. Please try again." });
-         }
+
+        // Find the specific currency account for the user and check balance
+        const account = await Account.findOne({ user: userId, currency }).session(session);
+
+        if (!account || account.balance < withdrawalAmount) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: `Insufficient funds in ${currency} account or account does not exist.` });
+        }
+
+        // Deduct the withdrawal amount from the specific currency account atomically
+        const updatedAccount = await Account.findOneAndUpdate(
+            { _id: account._id, balance: { $gte: withdrawalAmount } },
+            { $inc: { balance: -withdrawalAmount } },
+            { new: true, session }
+        );
+
+        if (!updatedAccount) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: "Failed to deduct the withdrawal amount. Please try again." });
+        }
 
         // Record the Mobile Money withdrawal
         const newMobileMoneyWithdrawal = new MobileMoneyWithdrawal({
             withdrawalId,
             userId,
             firstName: firstName,
-            amount:withdrawalAmount,
+            amount: withdrawalAmount,
             currency: currency,
             phoneNumber,
             provider,

@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { startSession } = require('mongoose');
 const Kyc = require('../models/Kyc');
+const Account = require("../models/Account");
 const CharityUser = require('../models/CharityUser');
 const DonationLink = require('../models/donationLink');
 const Notification = require('../models/Notification');
@@ -107,7 +108,7 @@ exports.createDonationLink = async (req, res) => {
         const imageData = image ? image : undefined;
 
         // Check if the user already has an active donation link with the same fingerprintId
-        const existingLinkWithFingerprint = await DonationLink.findOne({fingerprintId: fingerprintId });
+        const existingLinkWithFingerprint = await DonationLink.findOne({ fingerprintId: fingerprintId });
         if (existingLinkWithFingerprint) {
             // Ban the user
             await CharityUser.findByIdAndUpdate(userId, { $set: { isBanned: true } });
@@ -405,18 +406,27 @@ exports.saveDonation = async (req, res) => {
             session.endSession();
             return res.status(403).json({ message: "Donation link owner is banned." });
         }
+        // Additional logic to find USD accounts for both donor and recipient
+        const donorUSDAccount = await Account.findOne({ user: donorId, currency: 'USD' }).session(session);
+        const recipientUSDAccount = await Account.findOne({ user: donationLink.user._id, currency: 'USD' }).session(session);
 
-        if (donor.balance < numericAmount) {
+        if (!donorUSDAccount || donorUSDAccount.balance < amount) {
             await session.abortTransaction();
             session.endSession();
-            return res.status(400).json({ message: "Insufficient balance for this donation." });
+            return res.status(400).json({ message: "Insufficient USD balance for donation." });
         }
 
-        // Deduct the donation amount from the donor's balance and update the donation link
-        await CharityUser.findByIdAndUpdate(donorId, { $inc: { balance: -numericAmount } }, { session });
+        // Ensure recipient has a USD account
+        if (!recipientUSDAccount) {
+            // Handle case where recipient does not have a USD account, possibly by creating one or aborting the donation
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: "Recipient does not have a USD account." });
+        }
 
-        // Add the donation amount to the recipient's (charity's) balance
-        await CharityUser.findByIdAndUpdate(donationLink.user._id, { $inc: { balance: numericAmount } }, { session });
+        // Atomic update to deduct from donor's USD account and add to recipient's USD account
+        await Account.findByIdAndUpdate(donorUSDAccount._id, { $inc: { balance: -amount } }, { session });
+        await Account.findByIdAndUpdate(recipientUSDAccount._id, { $inc: { balance: amount } }, { session });
 
         // Update the total donations received in the donation link
         const updatedDonationLink = await DonationLink.findByIdAndUpdate(donationLink._id, { $inc: { totalDonations: numericAmount } }, { session, new: true });

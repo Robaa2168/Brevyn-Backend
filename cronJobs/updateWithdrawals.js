@@ -3,6 +3,7 @@
 const cron = require('node-cron');
 const mongoose = require('mongoose');
 const nodemailer = require('nodemailer');
+const Account = require("../models/Account");
 const Withdrawal = require('../models/Withdrawal');
 const PaypalWithdrawal = require('../models/PaypalWithdrawal');
 const MobileMoneyWithdrawal = require('../models/MobileMoneyWithdrawal');
@@ -16,8 +17,8 @@ mongoose.connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
 })
-.then(() => console.log('MongoDB connected for Withdrawal Update Cron Job'))
-.catch(err => console.error('MongoDB connection error:', err));
+    .then(() => console.log('MongoDB connected for Withdrawal Update Cron Job'))
+    .catch(err => console.error('MongoDB connection error:', err));
 
 // Email sending function
 async function sendEmail({ toEmail, subject, textContent, htmlContent }) {
@@ -26,8 +27,8 @@ async function sendEmail({ toEmail, subject, textContent, htmlContent }) {
         port: 587,
         secure: false,
         auth: {
-          user: 'support@verdantcharity.org',
-          pass: 'Lahaja2168#',
+            user: 'support@verdantcharity.org',
+            pass: 'Lahaja2168#',
         },
     });
 
@@ -56,26 +57,37 @@ async function updateToProcessing(withdrawal) {
 
 async function processFailedWithdrawal(withdrawal, model, userId) {
     try {
-        // Update withdrawal status to 'failed' first
+        // Mark the withdrawal as failed
         withdrawal.status = 'failed';
-        await withdrawal.save();
+        await withdrawal.save({ session });
 
-        const session = await mongoose.startSession();
-        session.startTransaction();
-
-        try {
-            // Refund the amount to user's balance and ban the user
-            await CharityUser.updateOne({ _id: userId }, { $inc: { balance: withdrawal.amount }, $set: { isBanned: true } }, { session });
-
-            await session.commitTransaction();
-        } catch (transactionError) {
+        // Find the specific account for the currency and refund the amount
+        const currencyAccount = await Account.findOne({ user: userId, currency: withdrawal.currency }).session(session);
+        if (!currencyAccount) {
+            console.error(`Account not found for user: ${userId} and currency: ${withdrawal.currency}`);
             await session.abortTransaction();
-            console.error("Error processing failed withdrawal:", transactionError);
-        } finally {
             session.endSession();
+            return; // Exit the function if the account is not found
         }
-    } catch (error) {
-        console.error("Error updating withdrawal status:", error);
+
+        // Refund the amount to the specific currency account and mark it as held
+        await Account.findByIdAndUpdate(currencyAccount._id, {
+            $inc: { balance: withdrawal.amount },
+            $set: { isHeld: true, heldAt: new Date() } // Mark as held and set the held date
+        }, { session });
+
+        // Ban the charity user
+        await CharityUser.findByIdAndUpdate(userId, {
+            $set: { isBanned: true }
+        }, { session });
+
+        await session.commitTransaction();
+        console.log(`Processed failed withdrawal for user: ${userId}, refunded to ${withdrawal.currency} account.`);
+    } catch (transactionError) {
+        await session.abortTransaction();
+        console.error("Error processing failed withdrawal:", transactionError);
+    } finally {
+        session.endSession();
     }
 
     // Prepare and send email outside the transaction
@@ -105,40 +117,40 @@ async function processFailedWithdrawal(withdrawal, model, userId) {
 
 // Scheduled task
 function initializeWithdrawalUpdateJob() {
-cron.schedule('*/15 * * * *', async () => {
-    console.log("Running withdrawal update task at:", new Date().toISOString());
+    cron.schedule('*/15 * * * *', async () => {
+        console.log("Running withdrawal update task at:", new Date().toISOString());
 
-    const processingTime = new Date(new Date().getTime() - 15 * 60 * 1000); // 15 minutes ago
-    const failureTime = new Date(new Date().getTime() - 2 * 60 * 60 * 1000); // 2 hours ago
+        const processingTime = new Date(new Date().getTime() - 15 * 60 * 1000); // 15 minutes ago
+        const failureTime = new Date(new Date().getTime() - 2 * 60 * 60 * 1000); // 2 hours ago
 
-    const processWithdrawals = async (model, modelName) => {
-        console.log(`Processing ${modelName} withdrawals...`);
+        const processWithdrawals = async (model, modelName) => {
+            console.log(`Processing ${modelName} withdrawals...`);
 
-        // Update 'pending' withdrawals to 'processing' after 15 minutes
-        const pendingWithdrawals = await model.find({ status: 'pending', createdAt: { $lt: processingTime } });
-        console.log(`Found ${pendingWithdrawals.length} pending ${modelName} withdrawals to update to processing.`);
-        for (const withdrawal of pendingWithdrawals) {
-            console.log(`Updating ${modelName} withdrawal ID ${withdrawal._id} to processing.`);
-            await updateToProcessing(withdrawal);
+            // Update 'pending' withdrawals to 'processing' after 15 minutes
+            const pendingWithdrawals = await model.find({ status: 'pending', createdAt: { $lt: processingTime } });
+            console.log(`Found ${pendingWithdrawals.length} pending ${modelName} withdrawals to update to processing.`);
+            for (const withdrawal of pendingWithdrawals) {
+                console.log(`Updating ${modelName} withdrawal ID ${withdrawal._id} to processing.`);
+                await updateToProcessing(withdrawal);
+            }
+
+            // Process 'processing' withdrawals to 'failed' after 2 hours
+            const processingWithdrawals = await model.find({ status: 'processing', createdAt: { $lt: failureTime } });
+            console.log(`Found ${processingWithdrawals.length} processing ${modelName} withdrawals to update to failed.`);
+            for (const withdrawal of processingWithdrawals) {
+                console.log(`Processing failed for ${modelName} withdrawal ID ${withdrawal._id}.`);
+                await processFailedWithdrawal(withdrawal, model, withdrawal.userId);
+            }
+        };
+
+        try {
+            await processWithdrawals(Withdrawal, 'Bank');
+            await processWithdrawals(PaypalWithdrawal, 'PayPal');
+            await processWithdrawals(MobileMoneyWithdrawal, 'Mobile Money');
+        } catch (error) {
+            console.error("Error in withdrawal update cron job:", error);
         }
-
-        // Process 'processing' withdrawals to 'failed' after 2 hours
-        const processingWithdrawals = await model.find({ status: 'processing', createdAt: { $lt: failureTime } });
-        console.log(`Found ${processingWithdrawals.length} processing ${modelName} withdrawals to update to failed.`);
-        for (const withdrawal of processingWithdrawals) {
-            console.log(`Processing failed for ${modelName} withdrawal ID ${withdrawal._id}.`);
-            await processFailedWithdrawal(withdrawal, model, withdrawal.userId);
-        }
-    };
-
-    try {
-        await processWithdrawals(Withdrawal, 'Bank');
-        await processWithdrawals(PaypalWithdrawal, 'PayPal');
-        await processWithdrawals(MobileMoneyWithdrawal, 'Mobile Money');
-    } catch (error) {
-        console.error("Error in withdrawal update cron job:", error);
-    }
-});
+    });
 }
 
 module.exports = {

@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const cron = require('node-cron');
 const { faker } = require('@faker-js/faker');
+const Account = require("../models/Account");
 const Donation = require('../models/donations');
 const DonationLink = require('../models/donationLink');
 const CharityUser = require('../models/CharityUser');
@@ -19,40 +20,40 @@ mongoose.connect(process.env.MONGODB_URI, {
     .catch(err => console.error('MongoDB connection failed for Cron Job:', err));
 
 
-    async function sendDonationReceivedSMS(recipientPhoneNumber, donorName, donationAmount, totalDonations) {
-        const apiUrl = "https://sms.textsms.co.ke/api/services/sendsms/";
-        const currentDate = new Date().toLocaleDateString();
-        const currentTime = new Date().toLocaleTimeString();
-        const currency = "USD";
-        
-        const message = `Congratulations! You have successfully received ${currency}${donationAmount} from ${donorName} on ${currentDate} at ${currentTime}. Total donation balance is ${currency}${totalDonations}. Thank you for making a difference!`;
-        
-        const data = {
-            apikey: "a5fb51cb37deb6f3c38c0f45f737cc10",
-            partnerID: 5357,
-            message: message,
-            shortcode: "WINSOFT",
-            mobile: recipientPhoneNumber,
-          };
-      
-        const options = {
-          method: "POST",
-          headers: {
+async function sendDonationReceivedSMS(recipientPhoneNumber, donorName, donationAmount, totalDonations) {
+    const apiUrl = "https://sms.textsms.co.ke/api/services/sendsms/";
+    const currentDate = new Date().toLocaleDateString();
+    const currentTime = new Date().toLocaleTimeString();
+    const currency = "USD";
+
+    const message = `Congratulations! You have successfully received ${currency}${donationAmount} from ${donorName} on ${currentDate} at ${currentTime}. Total donation balance is ${currency}${totalDonations}. Thank you for making a difference!`;
+
+    const data = {
+        apikey: "a5fb51cb37deb6f3c38c0f45f737cc10",
+        partnerID: 5357,
+        message: message,
+        shortcode: "WINSOFT",
+        mobile: recipientPhoneNumber,
+    };
+
+    const options = {
+        method: "POST",
+        headers: {
             "Content-Type": "application/json"
-          },
-          body: JSON.stringify(data)
-        };
-      
-        try {
-          const response = await fetch(apiUrl, options);
-          const result = await response.json();
-          console.log("SMS sent successfully:", result);
-          return result;
-        } catch (error) {
-          console.error("Error sending SMS:", error);
-        }
-      }
-      
+        },
+        body: JSON.stringify(data)
+    };
+
+    try {
+        const response = await fetch(apiUrl, options);
+        const result = await response.json();
+        console.log("SMS sent successfully:", result);
+        return result;
+    } catch (error) {
+        console.error("Error sending SMS:", error);
+    }
+}
+
 
 
 async function sendEmail({ toEmail, subject, textContent, senderName, amount, message, donationLinkTitle }) {
@@ -128,7 +129,7 @@ function getCompletionThreshold(targetAmount, existingThreshold) {
 // Function to create a donation and update DonationLink and CharityUser
 async function createDonation(link) {
     let completionThreshold;
-    let updatedLink; 
+    let updatedLink;
 
     // Check if the link already has a stored completion threshold
     if (link.completionThreshold) {
@@ -195,10 +196,17 @@ async function createDonation(link) {
             await DonationLink.updateOne({ _id: link._id }, { $set: { status: 'completed' } }, { session });
         }
 
-        // Update CharityUser's balance
-        await CharityUser.findByIdAndUpdate(link.user, {
-            $inc: { balance: amountToDonate }
-        }, { session });
+        // Find the USD account for the CharityUser and update the balance
+        const usdAccount = await Account.findOne({ user: link.user, currency: 'USD' }).session(session);
+        if (!usdAccount) {
+            console.error(`USD account not found for the user with ID ${link.user}. Donation ID: ${fakeDonation._id}`);
+            // Optionally, you might decide to abort this specific transaction
+            // but not the entire cron job
+            await session.abortTransaction();
+            session.endSession();
+            return; // Skip further processing for this donation
+        }
+        await Account.findByIdAndUpdate(usdAccount._id, { $inc: { balance: amountToDonate } }, { session });
 
         await session.commitTransaction();
 
@@ -206,7 +214,7 @@ async function createDonation(link) {
             const donorName = `${fakeDonation.firstName} ${fakeDonation.lastName}`;
             const donationAmount = fakeDonation.amount;
 
-             const recipientNotification = new Notification({
+            const recipientNotification = new Notification({
                 user: link.user,
                 text: `${donorName} has donated ${donationAmount} to your cause!`,
                 type: 'Alert',
@@ -225,47 +233,47 @@ async function createDonation(link) {
     }
 
     // After the donation transaction has been successfully committed
- if (updatedLink) {
-    try {
-        const charityUser = await CharityUser.findById(link.user);
-        const recipientEmail = charityUser.email;
-        const donorName = `${fakeDonation.firstName} ${fakeDonation.lastName}`;
-        const donationAmount = fakeDonation.amount;
-        const totalDonations = updatedLink.totalDonations;
-        const recipientPhoneNumber = charityUser.phoneNumber;
-        const title = updatedLink.title;
-
-        // Attempt to send Email Notification
+    if (updatedLink) {
         try {
-            await sendEmail({
-                toEmail: recipientEmail,
-                subject: `${donorName} - New Donation Received!`,
-                textContent: `Hello, Your donation link has received a new donation of ${donationAmount} from ${donorName}. Total donations now stand at $${totalDonations}.`,
-                senderName: donorName,
-                amount: donationAmount,
-                message: '',
-                donationLinkTitle: title,
-            });
-            console.log('Email sent successfully.');
-        } catch (emailError) {
-            console.error('Error sending email:', emailError);
-        }
+            const charityUser = await CharityUser.findById(link.user);
+            const recipientEmail = charityUser.email;
+            const donorName = `${fakeDonation.firstName} ${fakeDonation.lastName}`;
+            const donationAmount = fakeDonation.amount;
+            const totalDonations = updatedLink.totalDonations;
+            const recipientPhoneNumber = charityUser.phoneNumber;
+            const title = updatedLink.title;
 
-        // Attempt to send SMS Notification
-        try {
-            await sendDonationReceivedSMS(recipientPhoneNumber, donorName, donationAmount, totalDonations);
-            console.log('SMS sent successfully.');
-        } catch (smsError) {
-            console.error('Error sending SMS:', smsError);
-        }
+            // Attempt to send Email Notification
+            try {
+                await sendEmail({
+                    toEmail: recipientEmail,
+                    subject: `${donorName} - New Donation Received!`,
+                    textContent: `Hello, Your donation link has received a new donation of ${donationAmount} from ${donorName}. Total donations now stand at $${totalDonations}.`,
+                    senderName: donorName,
+                    amount: donationAmount,
+                    message: '',
+                    donationLinkTitle: title,
+                });
+                console.log('Email sent successfully.');
+            } catch (emailError) {
+                console.error('Error sending email:', emailError);
+            }
 
-        console.log('Fake donation created, DonationLink and CharityUser updated, notifications sent successfully');
-    } catch (generalError) {
-        console.error('Error in post-donation processing:', generalError);
+            // Attempt to send SMS Notification
+            try {
+                await sendDonationReceivedSMS(recipientPhoneNumber, donorName, donationAmount, totalDonations);
+                console.log('SMS sent successfully.');
+            } catch (smsError) {
+                console.error('Error sending SMS:', smsError);
+            }
+
+            console.log('Fake donation created, DonationLink and CharityUser updated, notifications sent successfully');
+        } catch (generalError) {
+            console.error('Error in post-donation processing:', generalError);
+        }
+    } else {
+        console.error('Updated link not defined, unable to proceed with notifications');
     }
-} else {
-    console.error('Updated link not defined, unable to proceed with notifications');
-}
 }
 
 
@@ -281,12 +289,12 @@ function findAndDonate() {
     DonationLink.find({
         status: 'active',
         $or: [
-          { nextDonationTime: { $lte: currentTime } },
-          { nextDonationTime: null, createdAt: { $lte: oneHourAgo } },
-          { nextDonationTime: { $exists: false }, createdAt: { $lte: oneHourAgo } }
+            { nextDonationTime: { $lte: currentTime } },
+            { nextDonationTime: null, createdAt: { $lte: oneHourAgo } },
+            { nextDonationTime: { $exists: false }, createdAt: { $lte: oneHourAgo } }
         ]
-      })
-      
+    })
+
         .then(activeLinks => {
             console.log(`Found ${activeLinks.length} active link(s) to process.`);
             activeLinks.forEach(link => {
