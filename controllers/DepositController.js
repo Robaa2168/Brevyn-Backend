@@ -162,68 +162,71 @@ const formatPhoneNumber = (phoneNumber) => {
         ZMW: 1 / 19.98,
         NGN: 1 / 413.34,
         RWF: 1 / 1010,
-      };
+    };
     const { ResultCode, CheckoutRequestID, CallbackMetadata } = req.body.Body.stkCallback;
-    
+
+    let session; // Define the session variable here
+
     try {
-      const session = await mongoose.startSession();
-      session.startTransaction();
-  
-      const metadata = CallbackMetadata.Item.reduce((acc, item) => {
-        acc[item.Name] = item.Value;
-        return acc;
-      }, {});
-  
-      const deposit = await Deposit.findOne({ checkoutRequestId: CheckoutRequestID }).session(session);
-      if (!deposit) {
-        throw new Error('Deposit not found.');
-      }
-  
-      if (ResultCode !== 0) {
-        // Handling for failed transactions
-        const errorMessage = req.body.Body.stkCallback.ResultDesc;
-        deposit.error = errorMessage;
-        deposit.errorCode = ResultCode;
-        deposit.isSuccess = false;
+        session = await mongoose.startSession();
+        session.startTransaction();
+
+        const metadata = CallbackMetadata.Item.reduce((acc, item) => {
+            acc[item.Name] = item.Value;
+            return acc;
+        }, {});
+
+        const deposit = await Deposit.findOne({ checkoutRequestId: CheckoutRequestID }).session(session);
+        if (!deposit) {
+            throw new Error('Deposit not found.');
+        }
+
+        if (ResultCode !== 0) {
+            // Handling for failed transactions
+            const errorMessage = req.body.Body.stkCallback.ResultDesc;
+            deposit.error = errorMessage;
+            deposit.errorCode = ResultCode;
+            deposit.isSuccess = false;
+            await deposit.save({ session });
+            throw new Error(errorMessage);
+        }
+
+        // Convert Amount based on currency
+        const amountFloat = parseFloat(metadata.Amount);
+        const convertedAmount = amountFloat / conversionRates[deposit.currency];
+
+        // Ensure user exists
+        const user = await User.findById(deposit.user).session(session);
+        if (!user) {
+            throw new Error('User not found.');
+        }
+
+        // Update the user's account balance
+        await Account.findOneAndUpdate(
+            { user: user._id, currency: deposit.currency },
+            { $inc: { balance: convertedAmount } },
+            { new: true, session }
+        );
+
+        // Mark the deposit as successful
+        deposit.mpesaReceiptNumber = metadata.MpesaReceiptNumber;
+        deposit.transactionDateCallback = metadata.TransactionDate;
+        deposit.phoneNumberCallback = metadata.PhoneNumber;
+        deposit.isSuccess = true;
+        deposit.isRedeemed = true;
         await deposit.save({ session });
-        throw new Error(errorMessage);
-      }
-  
-      // Convert Amount based on currency
-      const amountFloat = parseFloat(metadata.Amount);
-      const convertedAmount = amountFloat / conversionRates[deposit.currency];
-  
-      // Ensure user exists
-      const user = await User.findById(deposit.user).session(session);
-      if (!user) {
-        throw new Error('User not found.');
-      }
-  
-      // Update the user's account balance
-      await Account.findOneAndUpdate(
-        { user: user._id, currency: deposit.currency },
-        { $inc: { balance: convertedAmount } },
-        { new: true, session }
-      );
-  
-      // Mark the deposit as successful
-      deposit.mpesaReceiptNumber = metadata.MpesaReceiptNumber;
-      deposit.transactionDateCallback = metadata.TransactionDate;
-      deposit.phoneNumberCallback = metadata.PhoneNumber;
-      deposit.isSuccess = true;
-      deposit.isRedeemed = true;
-      await deposit.save({ session });
-  
-      await session.commitTransaction();
-      res.status(200).json({ message: 'Transaction confirmed and account updated.' });
+
+        await session.commitTransaction();
+        res.status(200).json({ message: 'Transaction confirmed and account updated.' });
     } catch (error) {
-      if (session.inTransaction()) await session.abortTransaction();
-      console.error('Error confirming transaction:', error);
-      res.status(500).json({ message: 'Internal server error', error: error.toString() });
+        if (session && session.inTransaction()) await session.abortTransaction();
+        console.error('Error confirming transaction:', error);
+        res.status(500).json({ message: 'Internal server error', error: error.toString() });
     } finally {
-      session.endSession();
+        if (session) session.endSession();
     }
-  };
+};
+
   
 
 
