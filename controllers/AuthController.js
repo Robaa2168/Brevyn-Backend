@@ -514,26 +514,17 @@ exports.getUserInfo = async (req, res) => {
     }
 
     // Fetch user's KYC data
-    const kycData = await Kyc.findOne({ user: userId });
+   const accounts = await Account.find({ user: userId }).lean();
 
-    // Prepare user data for response, including all needed details
-    const userData = {
-      _id: user._id,
-      username: user.username,
-      profileImage: user.profileImage,
-      email: user.email,
-      role: user.role,
-      phoneNumber: user.phoneNumber,
-      isBanned: user.isBanned,
-      isVerified: user.isVerified,
-      points: user.points,
-      balance: user.balance,
-      otp: user.otp,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      isPremium: user.isPremium,
-      primaryInfo: kycData || null,
-    };
+
+   // Prepare user data, including all KYC data
+   const userData = {
+     isBanned: user.isBanned,
+     points: user.points,
+     balance: user.balance,
+     isPremium: user.isPremium,
+     accounts
+   };
 
     // Respond with user data
     return res.status(200).json(userData);
