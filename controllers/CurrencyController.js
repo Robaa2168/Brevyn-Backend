@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const Account = require('../models/Account');
 
 
-const activationPriceUSD = 10;
+const activationPriceUSD = 20;
 const africanCurrencies = ['KES', 'ZAR', 'UGX', 'ZMW', 'NGN', 'RWF'];
 
 const conversionRates = {
@@ -23,7 +23,7 @@ function getActivationFee(currency) {
   if (africanCurrencies.includes(currency)) {
     return activationPriceUSD / conversionRates[currency];
   }
-  return 10;
+  return 20;
 }
 
 
