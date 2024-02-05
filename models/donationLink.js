@@ -43,7 +43,7 @@ const donationLinkSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['active','approved', 'completed','inactive', 'cancelled', 'rejected'],
+        enum: ['active','approved', 'completed','inactive', 'cancelled', 'rejected', 'test'],
         default: 'active'
     },
     views: {
