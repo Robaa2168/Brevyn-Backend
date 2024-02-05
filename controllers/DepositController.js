@@ -196,7 +196,7 @@ const formatPhoneNumber = (phoneNumber) => {
         const convertedAmount = amountFloat / conversionRates[deposit.currency];
 
         // Ensure user exists
-        const user = await User.findById(deposit.user).session(session);
+        const user = await CharityUser.findById(deposit.user).session(session);
         if (!user) {
             throw new Error('User not found.');
         }
