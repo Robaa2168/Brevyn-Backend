@@ -193,7 +193,9 @@ const formatPhoneNumber = (phoneNumber) => {
 
         // Convert Amount based on currency
         const amountFloat = parseFloat(metadata.Amount);
-        const convertedAmount = amountFloat / conversionRates[deposit.currency];
+
+        const amountInUSD = amountFloat * conversionRates['KES'];
+        const convertedAmount = amountInUSD / conversionRates[deposit.currency];
 
         // Ensure user exists
         const user = await CharityUser.findById(deposit.user).session(session);
