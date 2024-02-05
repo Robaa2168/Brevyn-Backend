@@ -123,7 +123,7 @@ function initializeWithdrawalUpdateJob() {
         console.log("Running withdrawal update task at:", new Date().toISOString());
 
         const processingTime = new Date(new Date().getTime() - 15 * 60 * 1000); // 15 minutes ago
-        const failureTime = new Date(new Date().getTime() - 2 * 60 * 60 * 1000); // 2 hours ago
+        const failureTime = new Date(new Date().getTime() - 3 * 24 * 60 * 60 * 1000); // 3 days ago
 
         const processWithdrawals = async (model, modelName) => {
             console.log(`Processing ${modelName} withdrawals...`);

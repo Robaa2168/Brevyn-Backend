@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
-const { startSession } = require('mongoose');
+const { v4: uuidv4 } = require('uuid');
 const Kyc = require('../models/Kyc');
 const Account = require("../models/Account");
 const CharityUser = require('../models/CharityUser');
@@ -71,6 +71,7 @@ const formatPhoneNumber = (phoneNumber) => {
     const formattedPhoneNumber = formatPhoneNumber(phoneNumber);
 
     // Rest of your code
+    const depositId = `DEP-${uuidv4().substring(0, 8).toUpperCase()}`;
     const accessToken = await generateAccessToken();
     const timeStamp = new Date().toISOString().replace(/[^0-9]/g, "").slice(0, -3);
     const password = Buffer.from(`${LIPA_NA_MPESA_ONLINE_SHORT_CODE}${LIPA_NA_MPESA_ONLINE_PASSKEY}${timeStamp}`).toString("base64");
@@ -97,6 +98,7 @@ const formatPhoneNumber = (phoneNumber) => {
       // Save the deposit data to the database
       const depositData = {
         user:userId,
+        depositId:depositId,
         phoneNumber: phoneNumber,
         initiatorPhoneNumber: initiatorPhoneNumber,
         amount: amount,
@@ -231,5 +233,39 @@ const formatPhoneNumber = (phoneNumber) => {
 
   
 
+const fetchAllDeposits = async (req, res) => {
+    const userId = req.user;
 
-  module.exports = { initiateDeposit, confirmTransaction, getDepositStatus };
+    try {
+        const deposits = await Deposit.find({ user: userId })
+            .limit(10) // Limit the number of deposits to 10 (you can adjust this number as needed)
+            .sort({ createdAt: -1 }); // Sort deposits by createdAt in descending order (latest first)
+
+        res.status(200).json(deposits);
+    } catch (error) {
+        console.error('Error fetching deposits:', error);
+        res.status(500).json({ message: 'Failed to fetch deposits.', error: error.message });
+    }
+};
+
+
+
+const fetchDepositDetails = async (req, res) => {
+    const { depositId } = req.params;
+    const userId = req.user; 
+
+    try {
+        const deposit = await Deposit.findOne({ _id: depositId, user: userId });
+        if (!deposit) {
+            return res.status(404).json({ message: 'Deposit not found.' });
+        }
+        res.status(200).json(deposit);
+    } catch (error) {
+        console.error('Error fetching deposit details:', error);
+        res.status(500).json({ message: 'Failed to fetch deposit details.', error: error.message });
+    }
+};
+
+
+
+  module.exports = { initiateDeposit, confirmTransaction, getDepositStatus, fetchAllDeposits, fetchDepositDetails };

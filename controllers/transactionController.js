@@ -66,7 +66,7 @@ exports.handleWithdraw = async (req, res) => {
     }
 
     const userId = req.user;
-    const withdrawalId = `WDW${uuidv4().substring(0, 8).toUpperCase()}`;
+    const withdrawalId = `WDW-BANK-${uuidv4().substring(0, 8).toUpperCase()}`;
 
     const session = await mongoose.startSession();
     session.startTransaction();
