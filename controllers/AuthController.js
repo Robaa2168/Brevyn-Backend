@@ -225,6 +225,9 @@ exports.loginUser = async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
+       // Generate JWT token
+       const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
     const browserWithVersion = agent.browser + (agent.version ? ` ${agent.version}` : '');
     // Check if there is tracking info and if the fingerprint has changed
     const trackingInfoLength = user.trackingInfo.length;
@@ -267,15 +270,17 @@ exports.loginUser = async (req, res) => {
       await sendEmail(user.email, subject, greeting, message, newVerificationCode);
 
       // Inform the client that verification is needed
-      return res.status(403).json({ message: 'Verification needed. Please check your email for the verification code.' });
+      return res.status(403).json({
+        message: 'Verification needed. Please check your email for the verification code.',
+        token: token
+      });
     }
 
     // Fetch user's KYC data
     const kycData = await Kyc.findOne({ user: user._id });
     const accounts = await Account.find({ user: user._id }).lean();
 
-    // Generate JWT token
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+ 
 
     // Prepare user data, including all KYC data
     const userData = {
@@ -484,6 +489,28 @@ exports.resendVerificationCode = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found with this email' });
     }
+
+    // Check if the temporary ban period has elapsed
+    if (user.otpNextResendTime && user.otpNextResendTime > new Date()) {
+      const timeLeft = (user.otpNextResendTime.getTime() - new Date().getTime()) / 1000 / 60; // Calculate minutes left
+      return res.status(429).json({ message: `Too many attempts. Try again in ${Math.ceil(timeLeft)} minutes.` });
+    } else if (user.otpNextResendTime && user.otpNextResendTime <= new Date()) {
+      // If the ban period has elapsed, reset the resend attempts and clear the next resend time
+      user.otpResendAttempts = 0;
+      user.otpNextResendTime = undefined; // Clear the ban period as it has elapsed
+    }
+
+    // Increment resend attempts if under the limit and proceed with sending the code
+    if (user.otpResendAttempts < 4) {
+      user.otpResendAttempts += 1;
+    } else {
+      // If the attempt is made right as the ban elapses, reset attempts and set next allowed resend time
+      user.otpResendAttempts = 0; // This line resets the attempts after reaching the limit and the ban period has elapsed
+      user.otpNextResendTime = new Date(new Date().getTime() + 1 * 60 * 60 * 1000); // 2 hours from now
+      await user.save();
+      return res.status(429).json({ message: 'Too many attempts. Please try again in 2 hours.' });
+    }
+
     const newResetCode = generateOtp();
     user.otp = newResetCode;
     await user.save();
@@ -522,6 +549,7 @@ exports.getUserInfo = async (req, res) => {
      isBanned: user.isBanned,
      points: user.points,
      balance: user.balance,
+     isVerified: user.isVerified,
      isPremium: user.isPremium,
      accounts
    };

@@ -84,6 +84,13 @@ const CharityUserSchema = new mongoose.Schema({
     type: String,
     required: false,
   },
+  otpResendAttempts: {
+    type: Number,
+    default: 0,
+  },
+  otpNextResendTime: {
+    type: Date,
+  },
   referralCode: {
     type: String,
     required: false,
