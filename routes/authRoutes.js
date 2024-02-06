@@ -17,6 +17,9 @@ router.get('/info', authMiddleware, authController.getUserInfo);
 // Define the submit KYC route with middleware
 router.post('/submit-kyc', authMiddleware, customerController.saveKycData);
 router.patch('/edit-kyc', authMiddleware, customerController.editKycData);
+router.get('/check-phone', customerController.checkPhoneInUse);
+router.get('/check-email', customerController.checkEmailInUse);
+
 
 
 router.post('/forgot-password', authController.forgotPassword);

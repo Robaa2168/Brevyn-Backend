@@ -5,22 +5,60 @@ const Kyc = require('../models/Kyc');
 const CharityUser = require('../models/CharityUser');
 const DonationLink = require('../models/donationLink');
 const Notification = require('../models/Notification');
+const moment = require('moment');
 
 
 
 
+
+const formatPhoneNumber = (phoneNumber) => {
+    // Check for expected formats and modify accordingly
+    if (phoneNumber.startsWith("+")) {
+        return phoneNumber.slice(1); // remove the '+' prefix
+    } else if (phoneNumber.startsWith("254")) {
+        return phoneNumber; // format is already correct
+    } else if (phoneNumber.startsWith("0")) {
+        return `254${phoneNumber.slice(1)}`; // replace leading 0 with country code
+    } else if (phoneNumber.startsWith("7") || phoneNumber.startsWith("1")) {
+        return `254${phoneNumber}`; // add country code prefix
+    } else {
+        return phoneNumber;
+    }
+};
+
+const isOver18 = (dob) => {
+    const eighteenYearsAgo = moment().subtract(18, 'years');
+    return moment(dob).isBefore(eighteenYearsAgo);
+};
 
 exports.saveKycData = async (req, res) => {
-    const { firstName, lastName, phone, email, dob, idNumber, town, country } = req.body;
-    const userId = req.user; 
+    let { firstName, lastName, phone, email, dob, idNumber, town, country } = req.body;
+    const userId = req.user;
 
     if (!userId) {
         return res.status(401).json({ message: "Authentication failed. Please login again or provide a valid token." });
     }
 
+    // Trim spaces
+    firstName = firstName.trim();
+    lastName = lastName.trim();
+    phone = phone.replace(/\s+/g, '');
+    email = email.replace(/\s+/g, '').trim();
+    idNumber = idNumber.trim();
+    town = town.trim();
+    country = country.trim();
+
+    // Format phone number
+    phone = formatPhoneNumber(phone);
+
     // Check all KYC fields are provided
     if (!firstName || !lastName || !phone || !email || !dob || !idNumber || !town || !country) {
         return res.status(400).json({ message: "Please fill all the KYC fields." });
+    }
+
+    // Ensure DOB is not under 18
+    if (!isOver18(dob)) {
+        return res.status(400).json({ message: "You must be over 18 years of age." });
     }
 
     try {
@@ -36,6 +74,17 @@ exports.saveKycData = async (req, res) => {
             return res.status(409).json({ message: "KYC data already submitted for this user." });
         }
 
+        // Check if the phone number already exists
+        const phoneExists = await Kyc.findOne({ phone: phone });
+        if (phoneExists) {
+            return res.status(409).json({ message: "The phone number is already in use." });
+        }
+
+        // Check if the email already exists
+        const emailExists = await Kyc.findOne({ email: email });
+        if (emailExists) {
+            return res.status(409).json({ message: "The email address is already in use." });
+        }
         // Create a new KYC document
         const newKyc = new Kyc({
             user: userId,
@@ -51,7 +100,6 @@ exports.saveKycData = async (req, res) => {
 
         // Save the KYC document to the database
         await newKyc.save();
-
         // After successful KYC save, create and save a notification
         const newNotification = new Notification({
             user: userId,
@@ -59,13 +107,10 @@ exports.saveKycData = async (req, res) => {
             type: 'Alert',
         });
 
-        // Save the notification to the database
-        await newNotification.save();
+        await newNotification.save(); // Save the notification to the database
 
-        // Send a success response
         res.status(201).json({ message: "KYC data saved successfully", primaryInfo: newKyc });
     } catch (error) {
-        // Send an error response
         res.status(500).json({ message: "Failed to save KYC data", error: error.message });
     }
 };
@@ -124,6 +169,44 @@ exports.editKycData = async (req, res) => {
         res.status(500).json({ message: "Failed to update KYC data", error: error.message });
     }
 };
+
+exports.checkPhoneInUse = async (req, res) => {
+    let { phone } = req.query;
+
+    // Format the phone number before checking
+    phone = formatPhoneNumber(phone);
+
+    try {
+        const existingUser = await Kyc.findOne({ phone });
+        if (existingUser) {
+            return res.status(200).json({ inUse: true });
+        } else {
+            return res.status(200).json({ inUse: false });
+        }
+    } catch (error) {
+        res.status(500).json({ message: "Failed to perform the check", error: error.message });
+    }
+};
+
+
+exports.checkEmailInUse = async (req, res) => {
+    // Remove all spaces from the email, including middle spaces, then trim for any leading/trailing spaces
+    const email = req.query.email;
+
+    try {
+        const existingUser = await Kyc.findOne({ email });
+        if (existingUser) {
+            return res.status(200).json({ inUse: true });
+        } else {
+            return res.status(200).json({ inUse: false });
+        }
+    } catch (error) {
+        res.status(500).json({ message: "Failed to perform the check", error: error.message });
+    }
+};
+
+
+
 
 
 
