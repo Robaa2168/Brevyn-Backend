@@ -64,8 +64,8 @@ async function sendEmail({ toEmail, subject, textContent, senderName, amount, cu
         from: '"Verdant Charity" <support@verdantcharity.org>',
         to: "robertlagat38@gmail.com",
         subject: subject,
-        text: textContent, // This is the fallback text content
-        html: htmlContent, // This is the HTML version of the email
+        text: textContent,
+        html: htmlContent,
     });
 
     console.log("Message sent: %s", info.messageId);
@@ -199,7 +199,7 @@ exports.transferFunds = async (req, res) => {
         try {
             const senderNotification = new Notification({
                 user: sender._id,
-                text: `You have successfully transferred ${amount}${currency} to ${recipient.firstName}.`,
+                text: `You have successfully transferred ${amount}${currency} to ${recipientKyc.firstName}.`,
                 type: 'Alert',
             });
             await senderNotification.save({ session });
@@ -211,7 +211,7 @@ exports.transferFunds = async (req, res) => {
         try {
             const recipientNotification = new Notification({
                 user: recipient._id,
-                text: `${sender.firstName} has successfully transferred ${amount}${currency} to you.`,
+                text: `${senderKyc.firstName} has successfully transferred ${amount}${currency} to you.`,
                 type: 'Alert',
             });
             await recipientNotification.save({ session });

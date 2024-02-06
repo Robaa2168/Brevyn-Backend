@@ -14,5 +14,7 @@ router.post('/withdraw/mobile', authMiddleware, transactionController.handleMobi
 
 router.get('/withdraw/user-withdrawals', authMiddleware, transactionController.getUserWithdrawals);
 
+router.get('/withdrawals/:withdrawalId', authMiddleware, transactionController.getWithdrawalDetails);
+
 
 module.exports = router;

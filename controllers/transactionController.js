@@ -512,3 +512,41 @@ exports.getUserWithdrawals = async (req, res) => {
         res.status(500).json({ message: "Internal server error", error: error.message });
     }
 };
+
+
+
+exports.getWithdrawalDetails = async (req, res) => {
+    try {
+        const { withdrawalId } = req.params;
+
+        let withdrawalDetails = null;
+        let type = '';
+
+        // Attempt to find the withdrawal in each collection and set the type accordingly
+        withdrawalDetails = await Withdrawal.findById(withdrawalId);
+        if (withdrawalDetails) {
+            type = 'Bank';
+        } else {
+            withdrawalDetails = await PaypalWithdrawal.findById(withdrawalId);
+            if (withdrawalDetails) {
+                type = 'Paypal';
+            } else {
+                withdrawalDetails = await MobileMoneyWithdrawal.findById(withdrawalId);
+                if (withdrawalDetails) {
+                    type = 'MobileMoney';
+                }
+            }
+        }
+
+        if (withdrawalDetails) {
+            // Add the type to the withdrawal details before sending the response
+            const responseDetails = { ...withdrawalDetails.toObject(), type }; // Ensure to convert Mongoose document to object
+            res.status(200).json(responseDetails);
+        } else {
+            res.status(404).json({ message: "Withdrawal not found" });
+        }
+    } catch (error) {
+        console.error("Error fetching withdrawal details: ", error);
+        res.status(500).json({ message: "Internal server error", error: error.message });
+    }
+};
