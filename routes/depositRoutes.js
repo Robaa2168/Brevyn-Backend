@@ -1,4 +1,4 @@
-// Import necessary modules
+// routes/depositRoutes.js
 const express = require('express');
 const router = express.Router();
 const depositController = require('../controllers/DepositController');
