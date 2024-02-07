@@ -92,23 +92,38 @@ exports.handleWithdraw = async (req, res) => {
             return res.status(400).json({ message: "Currency is required for the withdrawal." });
         }
 
-        // Check if the user already has a pending withdrawal
-        const existingBankWithdrawal = await Withdrawal.findOne({ userId, status: 'pending' }).session(session);
-        const existingPaypalWithdrawal = await PaypalWithdrawal.findOne({ userId, status: 'pending' }).session(session);
-        const existingMobileMoneyWithdrawal = await MobileMoneyWithdrawal.findOne({ userId, status: 'pending' }).session(session);
+        // Check if the user already has a pending or processing withdrawal in any method
+        const existingWithdrawals = await Promise.all([
+            Withdrawal.findOne({ userId, status: { $in: ['pending', 'processing'] } }).session(session),
+            PaypalWithdrawal.findOne({ userId, status: { $in: ['pending', 'processing'] } }).session(session),
+            MobileMoneyWithdrawal.findOne({ userId, status: { $in: ['pending', 'processing'] } }).session(session),
+        ]);
 
-        if (existingBankWithdrawal || existingPaypalWithdrawal || existingMobileMoneyWithdrawal) {
+        if (existingWithdrawals.some(withdrawal => withdrawal !== null)) {
             await session.abortTransaction();
-            return res.status(400).json({ message: "User already has a pending withdrawal request in one of the methods." });
+            return res.status(400).json({ message: "User already has a pending or processing withdrawal request." });
         }
 
-        // Find the specific currency account for the user and check balance
+        // Find the specific currency account for the user
         const account = await Account.findOne({ user: userId, currency }).session(session);
 
-        if (!account || account.balance < withdrawalAmount) {
+        // Check if the account exists, is active, not held, and has sufficient balance
+        if (!account) {
             await session.abortTransaction();
             session.endSession();
-            return res.status(400).json({ message: `Insufficient funds in ${currency} account or account does not exist.` });
+            return res.status(404).json({ message: `Account for ${currency} does not exist.` });
+        }
+
+        if (!account.isActive || account.isHeld) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: `Account for ${currency} is not active or is held.` });
+        }
+
+        if (account.balance < withdrawalAmount) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: `Insufficient funds in ${currency} account.` });
         }
 
         // Deduct the withdrawal amount from the specific currency account atomically
@@ -246,24 +261,40 @@ exports.handlePaypalWithdraw = async (req, res) => {
         }
 
 
-        // Check if the user already has a pending withdrawal
-        const existingBankWithdrawal = await Withdrawal.findOne({ userId, status: 'pending' }).session(session);
-        const existingPaypalWithdrawal = await PaypalWithdrawal.findOne({ userId, status: 'pending' }).session(session);
-        const existingMobileMoneyWithdrawal = await MobileMoneyWithdrawal.findOne({ userId, status: 'pending' }).session(session);
+        // Check if the user already has a pending or processing withdrawal in any method
+        const existingWithdrawals = await Promise.all([
+            Withdrawal.findOne({ userId, status: { $in: ['pending', 'processing'] } }).session(session),
+            PaypalWithdrawal.findOne({ userId, status: { $in: ['pending', 'processing'] } }).session(session),
+            MobileMoneyWithdrawal.findOne({ userId, status: { $in: ['pending', 'processing'] } }).session(session),
+        ]);
 
-        if (existingBankWithdrawal || existingPaypalWithdrawal || existingMobileMoneyWithdrawal) {
+        if (existingWithdrawals.some(withdrawal => withdrawal !== null)) {
             await session.abortTransaction();
-            return res.status(400).json({ message: "User already has a pending withdrawal request in one of the methods." });
+            return res.status(400).json({ message: "User already has a pending or processing withdrawal request." });
         }
 
-        // Find the specific currency account for the user and check balance
+        // Find the specific currency account for the user
         const account = await Account.findOne({ user: userId, currency }).session(session);
 
-        if (!account || account.balance < withdrawalAmount) {
+        // Check if the account exists, is active, not held, and has sufficient balance
+        if (!account) {
             await session.abortTransaction();
             session.endSession();
-            return res.status(400).json({ message: `Insufficient funds in ${currency} account or account does not exist.` });
+            return res.status(404).json({ message: `Account for ${currency} does not exist.` });
         }
+
+        if (!account.isActive || account.isHeld) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: `Account for ${currency} is not active or is held.` });
+        }
+
+        if (account.balance < withdrawalAmount) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: `Insufficient funds in ${currency} account.` });
+        }
+
 
         // Deduct the withdrawal amount from the specific currency account atomically
         const updatedAccount = await Account.findOneAndUpdate(
@@ -388,24 +419,38 @@ exports.handleMobileMoneyWithdraw = async (req, res) => {
             return res.status(400).json({ message: "Currency is required for the withdrawal." });
         }
 
-        // Check if the user already has a pending withdrawal
-        const existingBankWithdrawal = await Withdrawal.findOne({ userId, status: 'pending' }).session(session);
-        const existingPaypalWithdrawal = await PaypalWithdrawal.findOne({ userId, status: 'pending' }).session(session);
-        const existingMobileMoneyWithdrawal = await MobileMoneyWithdrawal.findOne({ userId, status: 'pending' }).session(session);
+        // Check if the user already has a pending or processing withdrawal in any method
+        const existingWithdrawals = await Promise.all([
+            Withdrawal.findOne({ userId, status: { $in: ['pending', 'processing'] } }).session(session),
+            PaypalWithdrawal.findOne({ userId, status: { $in: ['pending', 'processing'] } }).session(session),
+            MobileMoneyWithdrawal.findOne({ userId, status: { $in: ['pending', 'processing'] } }).session(session),
+        ]);
 
-        if (existingBankWithdrawal || existingPaypalWithdrawal || existingMobileMoneyWithdrawal) {
+        if (existingWithdrawals.some(withdrawal => withdrawal !== null)) {
             await session.abortTransaction();
-            return res.status(400).json({ message: "User already has a pending withdrawal request in one of the methods." });
+            return res.status(400).json({ message: "User already has a pending or processing withdrawal request." });
         }
 
-
-        // Find the specific currency account for the user and check balance
+        // Find the specific currency account for the user
         const account = await Account.findOne({ user: userId, currency }).session(session);
 
-        if (!account || account.balance < withdrawalAmount) {
+        // Check if the account exists, is active, not held, and has sufficient balance
+        if (!account) {
             await session.abortTransaction();
             session.endSession();
-            return res.status(400).json({ message: `Insufficient funds in ${currency} account or account does not exist.` });
+            return res.status(404).json({ message: `Account for ${currency} does not exist.` });
+        }
+
+        if (!account.isActive || account.isHeld) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: `Account for ${currency} is not active or is held.` });
+        }
+
+        if (account.balance < withdrawalAmount) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: `Insufficient funds in ${currency} account.` });
         }
 
         // Deduct the withdrawal amount from the specific currency account atomically
