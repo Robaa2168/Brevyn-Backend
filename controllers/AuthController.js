@@ -104,7 +104,7 @@ const createAccountWithRetry = async (userId, currency, retries = 3) => {
           user: userId,
           currency: currency,
           isPrimary: currency === "USD",
-          isActive: true,
+          isActive: currency === "USD",
       });
       await account.save();
   } catch (error) {
