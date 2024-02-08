@@ -13,12 +13,12 @@ mongoose.connect(process.env.MONGODB_URI, {
 .then(() => console.log('MongoDB connection established for script'))
 .catch(err => console.error('MongoDB connection failed for script:', err));
 
-const fingerprintIdToSearch = "39401076a8378aad1e90a89288a273f1";
+const fingerprintIdToSearch = "8bbb03a181cea8c68ea30cbedf754201";
 
 const writeBalanceToTextFile = async () => {
     try {
         // Find all users with the specified fingerprintId
-        const users = await CharityUser.find({});
+        const users = await CharityUser.find({ "trackingInfo.fingerprintId": fingerprintIdToSearch });
 
         if (users.length > 0) {
             console.log(`Found ${users.length} users with fingerprintId: ${fingerprintIdToSearch}`);
@@ -37,13 +37,6 @@ const writeBalanceToTextFile = async () => {
                     for (const account of accountBalances) {
                         const currencyBalance = `${account.currency}: ${account.balance}\n`;
                         await fs.appendFile('user_info.txt', currencyBalance);
-                        
-                        // Update isActive flag based on currency
-                        if (account.currency !== 'USD') {
-                            account.isActive = false;
-                            await account.save();
-                            console.log(`Currency ${account.currency} is now inactive for user ${user.username}`);
-                        }
                     }
                     await fs.appendFile('user_info.txt', '\n');
                 }

@@ -11,6 +11,7 @@ router.post('/login', authController.loginUser);
 router.patch('/upgrade-membership', authMiddleware, customerController.upgradeMembership);
 router.post('/change-password', authMiddleware, authController.changePassword);
 router.post('/verify-first-time-user', authController.verifyFirstTimeUser);
+router.post('/verify-phone', authController.verifyPhoneNumber);
 router.get('/info', authMiddleware, authController.getUserInfo);
 
 
@@ -26,6 +27,7 @@ router.post('/forgot-password', authController.forgotPassword);
 
 // Define the route for verifying reset password code
 router.post('/verify-code', authController.verifyResetCode);
+router.post('/change-phone', authController.changePhoneNumber);
 
 // Define the reset password route
 router.post('/reset-password', authController.resetPassword);

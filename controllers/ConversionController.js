@@ -110,6 +110,7 @@ const getConversionRate = (fromCurrency, toCurrency) => {
       return 1; // Fallback to 1:1 conversion rate
     }
   };
+  
 
 exports.performCurrencyConversion = async (req, res) => {
         const {fromCurrency, toCurrency, amount } = req.body;

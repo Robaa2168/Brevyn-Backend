@@ -44,6 +44,35 @@ async function sendEmail(recipientEmail, subject, greeting, message, code) {
 }
 
 
+
+// Example function to send SMS
+const sendSms = async (phoneNumber, message) => {
+  const url = "https://sms.textsms.co.ke/api/services/sendsms/";
+  const data = {
+    apikey: 'a5fb51cb37deb6f3c38c0f45f737cc10',
+    partnerID: 5357,
+    message: message,
+    shortcode: 'WINSOFT',
+    mobile: phoneNumber
+  };
+
+  const options = {
+    method: 'POST',
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    },
+    body: JSON.stringify(data)
+  };
+
+  try {
+    const response = await fetch(url, options);
+    const result = await response.json();
+    return result; // You might want to handle the result based on your needs
+  } catch (error) {
+    console.error('Error sending SMS:', error);
+  }
+};
 // Utility functions to generate unique information for the user
 // More adjectives for names
 const adjectives = [
@@ -276,6 +305,24 @@ exports.loginUser = async (req, res) => {
       });
     }
 
+    // Check if phone is verified
+if (!user.isPhoneVerified) {
+  const newOtp = generateOtp();
+  user.otp = newOtp;
+  await user.save();
+
+  // Send verification SMS
+  const smsMessage = `Your verification code is: ${newOtp}`;
+  await sendSms(user.phoneNumber, smsMessage);
+
+  // Inform the client that phone verification is needed, including the unverified phone number in the response
+  return res.status(403).json({
+    message: 'Phone verification needed. Please check your messages for the verification code.',
+    token: token,
+    phoneNumber: user.phoneNumber // Include the phone number needing verification
+  });
+}
+
     // Fetch user's KYC data
     const kycData = await Kyc.findOne({ user: user._id });
     const accounts = await Account.find({ user: user._id }).lean();
@@ -377,7 +424,7 @@ exports.verifyFirstTimeUser = async (req, res) => {
     // After successful verification, create and save a notification
     const newNotification = new Notification({
       user: user._id,
-      text: 'Your account has been successfully verified.',
+      text: 'Your email has been successfully verified.',
       type: 'Alert',
     });
 
@@ -390,6 +437,46 @@ exports.verifyFirstTimeUser = async (req, res) => {
   }
 };
 
+
+
+// Function to verify user's phone number
+exports.verifyPhoneNumber = async (req, res) => {
+  const { phoneNumber, verificationCode } = req.body;
+
+  try {
+    // Normalize or format the phone number before querying
+    const formattedPhoneNumber = formatPhoneNumber(phoneNumber); // Assuming you have a formatter function
+    const user = await CharityUser.findOne({ phoneNumber: formattedPhoneNumber });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    // Check if the provided verification code matches the one saved in the user's document
+    if (user.otp !== verificationCode) {
+      return res.status(400).json({ message: 'Invalid or expired verification code.' });
+    }
+
+    user.isPhoneVerified = true; // Mark the phone number as verified
+    const newCode = generateOtp(); // Assuming you regenerate the OTP for security reasons
+    user.otp = newCode; // Save the new OTP or clear the field as per your application logic
+    await user.save();
+
+    // After successful verification, create and save a notification (optional)
+    const newNotification = new Notification({
+      user: user._id,
+      text: 'Your phone number has been successfully verified.',
+      type: 'Alert',
+    });
+
+    await newNotification.save();
+
+    return res.status(200).json({ message: 'Phone number verified successfully' });
+  } catch (error) {
+    console.error('Phone number verification error:', error);
+    return res.status(500).json({ message: 'Internal Server Error', error: error.message });
+  }
+};
 
 
 exports.forgotPassword = async (req, res) => {
@@ -479,56 +566,107 @@ exports.resetPassword = async (req, res) => {
 
 
 
+// Function to change the phone number
+exports.changePhoneNumber = async (req, res) => {
+  const { oldPhone, newPhone } = req.body;
+
+  // Validation: Check if newPhone is not empty and is valid
+  if (!newPhone || newPhone.trim() === '') {
+    return res.status(400).json({ message: 'The new phone number is required.' });
+  }
+
+  // Format the old and new phone numbers
+  const formattedOldPhone = formatPhoneNumber(oldPhone);
+  const formattedNewPhone = formatPhoneNumber(newPhone);
+
+  try {
+    // Find the user based on the formatted old phone number
+    const user = await CharityUser.findOne({ phoneNumber: formattedOldPhone });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found with the specified old phone number.' });
+    }
+
+    // Update the user's phone number with the formatted new phone number
+    user.phoneNumber = formattedNewPhone;
+    user.otpResendAttempts = 0;
+    user.otpNextResendTime = undefined;
+    user.isPhoneVerified = false; // Optionally reset phone verification status
+
+    // Generate a new OTP for phone verification and save it to the user
+    const newVerificationCode = generateOtp();
+    user.otp = newVerificationCode;
+
+    await user.save();
+
+    // Optionally, send a new OTP via SMS to the formatted new phone number
+    const smsMessage = `Your new Verdant verification code is: ${newVerificationCode}`;
+    await sendSms(formattedNewPhone, smsMessage);
+
+    return res.status(200).json({
+      message: 'Phone number changed successfully. A new verification code has been sent to the new phone number.'
+    });
+  } catch (error) {
+    console.error('Change phone number error:', error);
+    return res.status(500).json({ message: 'Internal Server Error', error: error.message });
+  }
+};
+
 
 // Function to resend the verification code
 exports.resendVerificationCode = async (req, res) => {
-  const { email } = req.body;
+  const { email, phoneNumber } = req.body;
 
   try {
-    const user = await CharityUser.findOne({ email });
+    // Find the user based on email or phone number
+    const userQuery = email ? { email } : { phoneNumber };
+    const user = await CharityUser.findOne(userQuery);
+
     if (!user) {
-      return res.status(404).json({ message: 'User not found with this email' });
+      return res.status(404).json({ message: 'User not found' });
     }
 
     // Check if the temporary ban period has elapsed
     if (user.otpNextResendTime && user.otpNextResendTime > new Date()) {
-      const timeLeft = (user.otpNextResendTime.getTime() - new Date().getTime()) / 1000 / 60; // Calculate minutes left
+      const timeLeft = (user.otpNextResendTime.getTime() - new Date().getTime()) / 1000 / 60;
       return res.status(429).json({ message: `Too many attempts. Try again in ${Math.ceil(timeLeft)} minutes.` });
     } else if (user.otpNextResendTime && user.otpNextResendTime <= new Date()) {
-      // If the ban period has elapsed, reset the resend attempts and clear the next resend time
       user.otpResendAttempts = 0;
-      user.otpNextResendTime = undefined; // Clear the ban period as it has elapsed
+      user.otpNextResendTime = undefined;
     }
 
-    // Increment resend attempts if under the limit and proceed with sending the code
     if (user.otpResendAttempts < 4) {
       user.otpResendAttempts += 1;
     } else {
-      // If the attempt is made right as the ban elapses, reset attempts and set next allowed resend time
-      user.otpResendAttempts = 0; // This line resets the attempts after reaching the limit and the ban period has elapsed
-      user.otpNextResendTime = new Date(new Date().getTime() + 1 * 60 * 60 * 1000); // 2 hours from now
+      // Reset attempts and set next allowed resend time to 2 hours from now
+      user.otpResendAttempts = 0;
+      user.otpNextResendTime = new Date(new Date().getTime() + 2 * 60 * 60 * 1000);
       await user.save();
       return res.status(429).json({ message: 'Too many attempts. Please try again in 2 hours.' });
     }
 
-    const newResetCode = generateOtp();
-    user.otp = newResetCode;
+    const newVerificationCode = generateOtp();
+    user.otp = newVerificationCode;
     await user.save();
 
-    // Prepare email content
-    const subject = "Resend Verification Code";
-    const greeting = "Hello,";
-    const message = "You have requested to resend your verification code. Please use the following code:";
-
-    // Send the new code via email
-    await sendEmail(user.email, subject, greeting, message, newResetCode);
-
-    return res.status(200).json({ message: 'A new verification code has been sent to your email' });
+    if (email) {
+      // Send the new code via email
+      const emailSubject = "Resend Verification Code";
+      const emailGreeting = "Hello,";
+      const emailMessage = "You have requested to resend your verification code. Please use the following code:";
+      await sendEmail(user.email, emailSubject, emailGreeting, emailMessage, newVerificationCode);
+      return res.status(200).json({ message: 'A new verification code has been sent to your email.' });
+    } else if (phoneNumber) {
+      // Send the new code via SMS
+      const smsMessage = `Your verification code is: ${newVerificationCode}`;
+      await sendSms(user.phoneNumber, smsMessage);
+      return res.status(200).json({ message: 'A new verification code has been sent to your phone.' });
+    }
   } catch (error) {
     console.error('Resend verification code error:', error);
     return res.status(500).json({ message: 'Internal Server Error', error: error.message });
   }
 };
+
 
 
 exports.getUserInfo = async (req, res) => {

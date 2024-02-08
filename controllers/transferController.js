@@ -268,16 +268,19 @@ exports.transferFunds = async (req, res) => {
 
 exports.fetchAllTransfers = async (req, res) => {
     try {
-        const userId = req.user; 
+        const userId = req.user;
         const transfers = await Transaction.find({ $or: [{ sender: userId }, { receiver: userId }] })
-            .sort({ createdAt: -1 }) // Sort by createdAt in descending order
-            .limit(10); // Limit to the 10 most recent entries
+            .populate('sender', 'profileImage') // Populate sender image
+            .populate('receiver', 'profileImage') // Populate receiver image
+            .sort({ createdAt: -1 })
+            .limit(10); // Assuming you meant to limit to 10, not 2
         res.status(200).json(transfers);
     } catch (error) {
         console.error("Error fetching transfers:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 };
+
 
 
 // Fetch details of a specific transfer
