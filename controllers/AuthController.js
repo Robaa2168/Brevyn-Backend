@@ -444,9 +444,7 @@ exports.verifyPhoneNumber = async (req, res) => {
   const { phoneNumber, verificationCode } = req.body;
 
   try {
-    // Normalize or format the phone number before querying
-    const formattedPhoneNumber = formatPhoneNumber(phoneNumber); // Assuming you have a formatter function
-    const user = await CharityUser.findOne({ phoneNumber: formattedPhoneNumber });
+    const user = await CharityUser.findOne({ phoneNumber });
 
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
@@ -580,6 +578,12 @@ exports.changePhoneNumber = async (req, res) => {
   const formattedNewPhone = formatPhoneNumber(newPhone);
 
   try {
+    // Check if the new phone number is already in use by another user
+    const phoneInUse = await CharityUser.findOne({ phoneNumber: formattedNewPhone });
+    if (phoneInUse) {
+      return res.status(409).json({ message: 'The new phone number is already in use .' });
+    }
+
     // Find the user based on the formatted old phone number
     const user = await CharityUser.findOne({ phoneNumber: formattedOldPhone });
     if (!user) {
@@ -610,6 +614,7 @@ exports.changePhoneNumber = async (req, res) => {
     return res.status(500).json({ message: 'Internal Server Error', error: error.message });
   }
 };
+
 
 
 // Function to resend the verification code
