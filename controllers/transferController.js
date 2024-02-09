@@ -104,7 +104,7 @@ exports.transferFunds = async (req, res) => {
 
         // Validate amount
         const numericAmount = parseFloat(amount.trim());
-        if (isNaN(numericAmount) || numericAmount <= 0) {
+        if (isNaN(numericAmount) || numericAmount <= 10) {
             await session.abortTransaction();
             session.endSession();
             return res.status(400).json({ message: "Invalid or insufficient transfer amount" });

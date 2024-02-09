@@ -14,7 +14,8 @@ const faqSchema = new mongoose.Schema({
     category: {
         type: String,
         required: false,
-        trim: true
+        trim: true,
+        default:"Impact",
     },
     createdAt: {
         type: Date,

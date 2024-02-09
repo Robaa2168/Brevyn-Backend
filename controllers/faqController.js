@@ -4,20 +4,20 @@ const Faq = require('../models/Faq');
 const sanitizeHtml = require('sanitize-html');
 
 exports.postFaq = async (req, res) => {
-    let { question, answer } = req.body;
+    let { question, answer, category } = req.body;
 
     // Validate the input
-    if (!question || !answer) {
-        return res.status(400).json({ message: 'Question and answer are required.' });
+    if (!question || !answer || !category) {
+        return res.status(400).json({ message: 'Question, answer, and category are required.' });
     }
 
     // Sanitize HTML content to prevent XSS attacks
     answer = sanitizeHtml(answer, {
-        allowedTags: sanitizeHtml.defaults.allowedTags.concat([ 'img' ]) // Customize allowed tags as needed
+        allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img']) // Customize allowed tags as needed
     });
 
     try {
-        const newFaq = new Faq({ question, answer });
+        const newFaq = new Faq({ question, answer, category }); // Include category in the new FAQ
         await newFaq.save();
         res.status(201).json({ message: 'FAQ created successfully', faq: newFaq });
     } catch (error) {
@@ -28,12 +28,13 @@ exports.postFaq = async (req, res) => {
 
 exports.getFaqs = async (req, res) => {
     try {
-        const faqs = await Faq.find();
+        const faqs = await Faq.find({ category: 'Transaction' }); 
         res.status(200).json(faqs);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching FAQs', error: error.message });
     }
 };
+
 
 
 exports.updateFaq = async (req, res) => {

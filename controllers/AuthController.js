@@ -166,17 +166,20 @@ async function createAccountsForUser(userId) {
 }
 
 
-// The signupUser function handling user registration
+/// The signupUser function handling user registration
 exports.signupUser = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  const { email, phoneNumber, password } = req.body;
+  let { email, phoneNumber, password } = req.body;
 
   if (!email || !phoneNumber || !password) {
     return res.status(400).json({ message: 'Please provide all required fields.' });
   }
+
+  // Convert email to lowercase
+  email = email.toLowerCase();
 
   const formattedPhoneNumber = formatPhoneNumber(phoneNumber);
 
@@ -188,7 +191,6 @@ exports.signupUser = async (req, res) => {
       return res.status(400).json({ message: 'User already exists with the provided email or phone number.' });
     }
 
-
     const hashedPassword = await bcrypt.hash(password, 10);
     const username = generateRandomUsername();
     const referralCode = generateReferralCode();
@@ -197,7 +199,7 @@ exports.signupUser = async (req, res) => {
     const payId = generateOtp();
 
     const newUser = new CharityUser({
-      email,
+      email, // This is now the lowercase email
       phoneNumber: formattedPhoneNumber,
       password: hashedPassword,
       username,
@@ -223,7 +225,7 @@ exports.signupUser = async (req, res) => {
       user: {
         id: newUser._id,
         username: newUser.username,
-        email: newUser.email,
+        email: newUser.email, // This is now the lowercase email
       }
     });
   } catch (error) {
@@ -235,12 +237,15 @@ exports.signupUser = async (req, res) => {
 
 
 exports.loginUser = async (req, res) => {
-  const { email, password, fingerprintId } = req.body;
+  let { email, password, fingerprintId } = req.body; // Using let for email as its value will be modified
 
-      // Obtain the IP address from the request
-      const ip = req.headers['x-forwarded-for']?.split(',').shift() || req.ip || req.connection.remoteAddress;
-      const agentString = req.headers['user-agent'];
-      const agent = useragent.parse(agentString);
+  // Obtain the IP address from the request
+  const ip = req.headers['x-forwarded-for']?.split(',').shift() || req.ip || req.connection.remoteAddress;
+  const agentString = req.headers['user-agent'];
+  const agent = useragent.parse(agentString);
+
+  // Convert email to lowercase to ensure case-insensitive matching
+  email = email.toLowerCase();
 
   try {
     const user = await CharityUser.findOne({ email });
@@ -254,8 +259,8 @@ exports.loginUser = async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-       // Generate JWT token
-       const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    // Generate JWT token
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     const browserWithVersion = agent.browser + (agent.version ? ` ${agent.version}` : '');
     // Check if there is tracking info and if the fingerprint has changed
@@ -270,7 +275,7 @@ exports.loginUser = async (req, res) => {
       platform: agent.platform,
       device: agent.isMobile ? 'Mobile' : (agent.isTablet ? 'Tablet' : 'Desktop'),
     };
-  
+
     if (trackingInfoLength === 0) {
       // If tracking info is empty, add the new tracking info
       user.trackingInfo.push(newTrackingInfo);
@@ -278,9 +283,9 @@ exports.loginUser = async (req, res) => {
       // If fingerprintId has changed, update the existing tracking info
       user.trackingInfo[trackingInfoLength - 1] = newTrackingInfo;
     }
-  
+
     user.lastLogin = new Date();
-  
+
     await user.save();
 
 
@@ -403,7 +408,10 @@ exports.changePassword = async (req, res) => {
 
 
 exports.verifyFirstTimeUser = async (req, res) => {
-  const { email, verificationCode } = req.body;
+  let { email, verificationCode } = req.body;
+
+  // Convert email to lowercase to ensure case-insensitive matching
+  email = email.toLowerCase();
 
   try {
     const user = await CharityUser.findOne({ email });
@@ -412,12 +420,12 @@ exports.verifyFirstTimeUser = async (req, res) => {
     }
 
     // Check if the provided verification code matches the one saved in the user's document
-    if (!user || user.otp !== verificationCode) {
+    if (user.otp !== verificationCode) {
       return res.status(400).json({ message: 'Invalid or expired verification code.' });
     }
 
     user.isVerified = true;
-    newCode = generateOtp();
+    const newCode = generateOtp(); // Ensure newCode is declared properly
     user.otp = newCode;
     await user.save();
 
@@ -478,12 +486,15 @@ exports.verifyPhoneNumber = async (req, res) => {
 
 
 exports.forgotPassword = async (req, res) => {
-  const { email } = req.body;
+  let { email } = req.body;
+
+  // Convert email to lowercase to ensure case-insensitive matching
+  email = email.toLowerCase();
 
   try {
     const user = await CharityUser.findOne({ email });
     if (!user) {
-      return res.status(404).json({ message: 'User not found with this email' });
+      return res.status(404).json({ message: 'User not found with this email.' });
     }
 
     // Check if a reset code already exists and use it, otherwise generate a new one
@@ -495,14 +506,15 @@ exports.forgotPassword = async (req, res) => {
     }
 
     // Prepare email content
-    const subject = "Verification Code";
+    const subject = "Password Reset Code";
     const greeting = "Dear user,";
-    const message = "Please use the following code to proceed with resetting your password:";
+    // Ensure the reset code is directly included in the message body
+    const message = `Please use the following code to proceed with resetting your password: ${resetCode}`;
 
     // Send the code via email
     await sendEmail(user.email, subject, greeting, message, resetCode);
 
-    return res.status(200).json({ message: 'A verification code has been sent to your email' });
+    return res.status(200).json({ message: 'A verification code has been sent to your email.' });
   } catch (error) {
     console.error('Forgot password error:', error);
     return res.status(500).json({ message: 'Internal Server Error', error: error.message });
@@ -510,8 +522,12 @@ exports.forgotPassword = async (req, res) => {
 };
 
 
+
 exports.verifyResetCode = async (req, res) => {
-  const { email, code } = req.body;
+  let { email, code } = req.body;
+
+  // Convert email to lowercase to ensure case-insensitive matching
+  email = email.toLowerCase();
 
   try {
     const user = await CharityUser.findOne({ email });
@@ -519,7 +535,7 @@ exports.verifyResetCode = async (req, res) => {
       return res.status(400).json({ message: 'Verification failed. Invalid code or email.' });
     }
 
-    // Code is valid, generate and save new code for next time
+    // Code is valid, generate and save new code for next use
     user.otp = generateOtp();
     await user.save();
 
@@ -531,8 +547,12 @@ exports.verifyResetCode = async (req, res) => {
 };
 
 
+
 exports.resetPassword = async (req, res) => {
-  const { email, newPassword } = req.body;
+  let { email, newPassword } = req.body;
+
+  // Convert email to lowercase to ensure case-insensitive matching
+  email = email.toLowerCase();
 
   try {
     const user = await CharityUser.findOne({ email });
@@ -540,6 +560,7 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ message: 'User not found.' });
     }
 
+    // Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedPassword;
     await user.save();
@@ -555,7 +576,7 @@ exports.resetPassword = async (req, res) => {
     await newNotification.save();
 
     // Send a success response
-    return res.status(200).json({ message: 'Password has been reset successfully' });
+    return res.status(200).json({ message: 'Password has been reset successfully.' });
   } catch (error) {
     console.error('Reset password error:', error);
     return res.status(500).json({ message: 'Internal Server Error', error: error.message });
@@ -617,13 +638,17 @@ exports.changePhoneNumber = async (req, res) => {
 
 
 
-// Function to resend the verification code
 exports.resendVerificationCode = async (req, res) => {
-  const { email, phoneNumber } = req.body;
+  let { email, phoneNumber } = req.body;
+
+  // If email is provided, convert it to lowercase to ensure case-insensitive matching
+  if (email) {
+    email = email.toLowerCase();
+  }
 
   try {
     // Find the user based on email or phone number
-    const userQuery = email ? { email } : { phoneNumber };
+    const userQuery = email ? { email } : { phoneNumber: formatPhoneNumber(phoneNumber) };
     const user = await CharityUser.findOne(userQuery);
 
     if (!user) {
@@ -657,12 +682,12 @@ exports.resendVerificationCode = async (req, res) => {
       // Send the new code via email
       const emailSubject = "Resend Verification Code";
       const emailGreeting = "Hello,";
-      const emailMessage = "You have requested to resend your verification code. Please use the following code:";
-      await sendEmail(user.email, emailSubject, emailGreeting, emailMessage, newVerificationCode);
+      const emailMessage = `You have requested to resend your verification code. Please use the following code: ${newVerificationCode}`;
+      await sendEmail(user.email, emailSubject, emailGreeting, emailMessage);
       return res.status(200).json({ message: 'A new verification code has been sent to your email.' });
     } else if (phoneNumber) {
       // Send the new code via SMS
-      const smsMessage = `Your verification code is: ${newVerificationCode}`;
+      const smsMessage = `Your Verdant verification code is: ${newVerificationCode}`;
       await sendSms(user.phoneNumber, smsMessage);
       return res.status(200).json({ message: 'A new verification code has been sent to your phone.' });
     }
@@ -671,6 +696,7 @@ exports.resendVerificationCode = async (req, res) => {
     return res.status(500).json({ message: 'Internal Server Error', error: error.message });
   }
 };
+
 
 
 
