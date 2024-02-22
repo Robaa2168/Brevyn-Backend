@@ -22,7 +22,7 @@ const LIPA_NA_MPESA_ONLINE_PASSKEY = '7f8c724ec1022a0acde20719041697df14dd76c0f0
 const SHORT_CODE = '4118171';
 const LIPA_NA_MPESA_ONLINE_SHORT_CODE = '4118171';
 const CALLBACK_URL = 'https://brevyn-backend.vercel.app/api/deposits/confirm_esrftj';
-const CALLBACK_B2C_URL = 'https://brevyn-backend.vercel.app/api/transactions/withraw/confirm_bonus';
+const CALLBACK_B2C_URL = 'https://brevyn-backend.vercel.app/api/transactions/withdraw/confirm_bonus';
 
 // Safaricom API endpoints
 const TOKEN_URL = "https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials";
@@ -738,7 +738,7 @@ exports.handleBonusWithdraw = async (req, res) => {
 
     // Ensure amount is a number and round it down
     const withdrawalAmount = Math.floor(Number(amount));
-    if (isNaN(withdrawalAmount) || withdrawalAmount < 50) {
+    if (isNaN(withdrawalAmount) || withdrawalAmount < 50 || withdrawalAmount > 300) {
         return res.status(400).json({ message: "Invalid amount provided. Minimum is KES 50" });
     }
     const userId = req.user;
