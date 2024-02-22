@@ -36,6 +36,39 @@ async function sendTransferSMS(senderFirstName, receiverPhoneNumber, amount, cur
     return result;
 }
 
+async function sendBonusSMS(phoneNumber, amount) {
+    const url = "https://sms.textsms.co.ke/api/services/sendsms/";
+    const roundedAmount = Math.floor(amount);
+    const message = `Congratulations! You've received a welcome bonus of KES ${roundedAmount} from Verdant Charity. Thank you for joining our mission to create positive change.`;
+  
+    const data = {
+      apikey: "a5fb51cb37deb6f3c38c0f45f737cc10",
+      partnerID: 5357,
+      message: message,
+      shortcode: "WINSOFT",
+      mobile: phoneNumber,
+    };
+  
+    const options = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify(data),
+    };
+  
+    try {
+      const response = await fetch(url, options);
+      const result = await response.json();
+      console.log(result)
+      return result;
+     
+    } catch (error) {
+      console.error("Error sending SMS:", error);
+      return { success: false, error: "Error sending SMS" };
+    }
+  }
 
 async function sendEmail({ toEmail, subject, textContent, senderName, amount, currency, receiverName }) {
     // Assuming the template is modified for fund transfers and saved as 'fund_transfer.html'
@@ -75,7 +108,7 @@ async function sendEmail({ toEmail, subject, textContent, senderName, amount, cu
 
 exports.transferFunds = async (req, res) => {
     const { amount, payId, currency } = req.body;
-    const senderId = req.user; // Assuming req.user is the sender's user ID
+    const senderId = req.user;
 
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -330,5 +363,124 @@ exports.fetchUserNameByPayId = async (req, res) => {
     } catch (error) {
         console.error("Error fetching user name by PayID:", error);
         return res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+
+
+exports.sendBonus = async (req, res) => {
+    const { amount, payId } = req.body; // Assuming payId is used to identify the recipient
+    const senderId = req.user;
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        const sender = await CharityUser.findById(senderId).session(session);
+        if (!sender) {
+            await session.abortTransaction();
+            return res.status(404).json({ message: "Sender not found." });
+        }
+
+        if (sender.isBanned) {
+            await session.abortTransaction();
+            return res.status(403).json({ message: "Sender is banned from performing transactions." });
+        }
+
+        const numericAmount = parseFloat(amount);
+        if (isNaN(numericAmount) || numericAmount <= 0) {
+            await session.abortTransaction();
+            return res.status(400).json({ message: "Invalid or insufficient bonus amount." });
+        }
+
+        if (sender.balance < numericAmount) {
+            await session.abortTransaction();
+            return res.status(400).json({ message: "Insufficient balance." });
+        }
+
+        const recipient = await CharityUser.findOne({ payId }).session(session);
+        if (!recipient) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json({ message: "Recipient not found." });
+        }
+
+        if (recipient.isBanned) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(403).json({ message: "Recipient is banned." });
+        }
+
+        await CharityUser.findByIdAndUpdate(sender._id, { $inc: { balance: -numericAmount } }, { session });
+        await CharityUser.findByIdAndUpdate(recipient._id, { $inc: { balance: numericAmount } }, { session });
+        
+
+        // Fetch KYC details for sender and recipient
+        const senderKyc = await Kyc.findOne({ user: senderId }).session(session);
+        const recipientKyc = await Kyc.findOne({ user: recipient._id }).session(session);
+
+        if (!senderKyc || !recipientKyc) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ message: "KYC information not found for sender or recipient." });
+        }
+
+        const transactionId = `BNS${uuidv4().substring(0, 8).toUpperCase()}`;
+
+        // Save the transaction
+        const transaction = new Transaction({
+            transactionType: "bonus",
+            transactionId,
+            sender: "658db0c10bfefbb749a5c305",
+            senderFirstName: "Verdant",
+            receiver: recipient._id,
+            receiverFirstName: recipientKyc.firstName,
+            currency: "KES",
+            amount: numericAmount,
+            status: "completed",
+        });
+        await transaction.save({ session });
+
+        await session.commitTransaction();
+
+        try {
+            await sendBonusSMS(recipient.phoneNumber, numericAmount);
+          } catch (smsError) {
+            console.error('Failed to send bonus SMS:', smsError);
+          }
+          
+
+        const senderNotification = new Notification({
+            user: sender._id,
+            text: `You have successfully sent a bonus of ${numericAmount} KES to ${recipientKyc.firstName}.`,
+            type: 'Alert',
+        });
+        await senderNotification.save();
+
+        const recipientNotification = new Notification({
+            user: recipient._id,
+            text: `${transactionId} You've received a ${numericAmount} KES bonus for your first transaction.Thank you for joining our mission to create positive change!.`,
+            type: 'Alert',
+        });
+
+        await recipientNotification.save();
+
+        session.endSession();
+        return res.status(201).json({
+            message: "Bonus sent successfully",
+            transaction: {
+                senderId: sender._id,
+                recipientId: recipient._id,
+                amount: numericAmount,
+                currency: "KES",
+                status: "completed",
+                transactionId
+            }
+        });
+    } catch (error) {
+        console.error("Error during sending bonus: ", error);
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(500).json({ message: "Internal server error", error: error.message });
     }
 };

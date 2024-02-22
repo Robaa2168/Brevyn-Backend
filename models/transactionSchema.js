@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const transactionSchema = new mongoose.Schema({
   transactionType: {
     type: String,
-    enum: ["request", "transfer"],
+    enum: ["request", "transfer","bonus"],
     required: true,
   },
   transactionId: {

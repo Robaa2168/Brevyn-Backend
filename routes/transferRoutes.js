@@ -7,6 +7,7 @@ const authMiddleware = require('../middlewares/authMiddleware');
 
 // Existing transfer-related routes
 router.post("/transfer", authMiddleware, transferController.transferFunds);
+router.post("/bonus", authMiddleware, transferController.sendBonus);
 router.get("/transfers", authMiddleware, transferController.fetchAllTransfers);
 router.get("/transfer/:transferId", authMiddleware, transferController.fetchTransferDetails);
 

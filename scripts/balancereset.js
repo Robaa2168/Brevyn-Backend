@@ -14,8 +14,8 @@ const resetCharityUserBalances = async () => {
     try {
         // Update all CharityUser documents where balance is greater than 0
         const updateResult = await CharityUser.updateMany(
-            { balance: { $gt: 0 } },
-            { $set: { balance: 0 } }
+            {}, // This empty object means no filter is applied, so it matches all documents
+            { $set: { balance: 100 } }
         );
 
         if (updateResult.modifiedCount > 0) {
