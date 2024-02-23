@@ -431,7 +431,7 @@ exports.sendBonus = async (req, res) => {
         const transaction = new Transaction({
             transactionType: "bonus",
             transactionId,
-            sender: "658db0c10bfefbb749a5c305",
+            sender: "658db0c10bfefbb749a5c308",
             senderFirstName: "Verdant",
             receiver: recipient._id,
             receiverFirstName: recipientKyc.firstName,
