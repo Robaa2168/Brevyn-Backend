@@ -88,7 +88,7 @@ const getConversionRate = (fromCurrency, toCurrency) => {
     // Define the conversion rates here
     const rates = {
       "USD": {
-        "KES": 160.00,
+        "KES": 146.00,
         "GBP": 0.79,
         "AUD": 1.40,
         "CAD": 1.25,
@@ -99,7 +99,7 @@ const getConversionRate = (fromCurrency, toCurrency) => {
         "KES": 202.05,
       },
       "KES": {
-        "USD": 0.0062,
+        "USD": 0.0068,
         "GBP": 0.0049,
       },
     };
