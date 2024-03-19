@@ -14,6 +14,9 @@ router.get('/:userId/transactions', authMiddleware, adminCustomerDetailControlle
 router.put('/kyc/:userId', authMiddleware, adminCustomerDetailController.updateUserKyc);
 router.put('/user/:userId', authMiddleware, adminCustomerDetailController.updateUserDetails);
 
+// GET associated accounts for a user
+router.get('/:userId/associated-accounts', authMiddleware, adminCustomerDetailController.getAssociatedAccounts);
+
 // GET accounts for a user
 router.get('/:userId/accounts', authMiddleware, adminCustomerDetailController.getUserAccounts);
 // PATCH to toggle held status of an account

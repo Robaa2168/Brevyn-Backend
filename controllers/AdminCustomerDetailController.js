@@ -174,3 +174,24 @@ exports.updateAccountBalance = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+
+exports.getAssociatedAccounts = async (req, res) => {
+    try {
+        const user = await CharityUser.findById(req.params.userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Fetch users with the same fingerprintId from trackingInfo
+        const associatedUsers = await CharityUser.find({
+            'trackingInfo.fingerprintId': { $in: user.trackingInfo.map(info => info.fingerprintId) },
+            _id: { $ne: user._id } // Exclude the current user
+        });
+
+        res.json(associatedUsers);
+    } catch (error) {
+        console.error("Error fetching associated accounts: ", error);
+        res.status(500).json({ message: error.message });
+    }
+};
