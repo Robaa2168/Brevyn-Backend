@@ -25,7 +25,7 @@ const chatRoutes = require('./routes/chatRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const faqRoutes = require('./routes/faqRoutes');
 const adminCustomerRoutes = require('./routes/adminCustomerRoutes');
-const adminCustomerDetailRoutes = require('./routes/adminCustomerDetailRoutes');
+const adminCustomerDetailRoutes = require('./routes/AdminCustomerDetailRoutes');
 
 
 
