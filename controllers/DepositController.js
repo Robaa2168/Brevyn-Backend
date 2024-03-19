@@ -158,7 +158,7 @@ const formatPhoneNumber = (phoneNumber) => {
         GBP: 1.24180,
         CAD: 1.351745,
         AUD: 1.30172,
-        KES: 1 / 146,
+        KES: 1 / 138,
         ZAR: 1 / 14.87,
         UGX: 1 / 3725,
         ZMW: 1 / 19.98,
