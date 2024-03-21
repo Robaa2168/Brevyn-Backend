@@ -174,11 +174,19 @@ exports.transferFunds = async (req, res) => {
             return res.status(400).json({ message });
         }
 
-        // Validate recipient's account exists for currency
-        const recipientAccount = await Account.findOne({ user: recipient._id, currency }).session(session);
-        if (!recipientAccount) {
-            return res.status(404).json({ message: "Recipient does not have an account in the specified currency." });
-        }
+     // Validate recipient's account for currency, account status
+const recipientAccount = await Account.findOne({ user: recipient._id, currency }).session(session);
+if (!recipientAccount || !recipientAccount.isActive || recipientAccount.isHeld) {
+    let message = "Issue with recipient's account.";
+    if (!recipientAccount) message = `Recipient's ${currency} account not found.`;
+    else if (!recipientAccount.isActive) message = `${currency} currency is inactive for recipient.`;
+    else if (recipientAccount.isHeld) message = `${currency} currency account for recipient is temporarily banned.`;
+
+    await session.abortTransaction();
+    session.endSession();
+    return res.status(400).json({ message });
+}
+
 
         // After validating sender and recipient, fetch their KYC details
         const senderKyc = await Kyc.findOne({ user: senderId }).session(session);
