@@ -195,3 +195,50 @@ exports.getAssociatedAccounts = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+
+exports.deleteUserWithdrawal = async (req, res) => {
+    try {
+        const { _id } = req.params;
+
+        // Try to delete from the first schema
+        let deleted = await BankWithdrawal.findByIdAndDelete(_id);
+        if (!deleted) {
+            // Try to delete from the second schema
+            deleted = await PaypalWithdrawal.findByIdAndDelete(_id);
+        }
+        if (!deleted) {
+            // Try to delete from the third schema
+            deleted = await MobileMoneyWithdrawal.findByIdAndDelete(_id);
+        }
+
+        if (deleted) {
+            res.status(200).json({ message: 'Withdrawal successfully deleted' });
+        } else {
+            // If not found in any schema
+            res.status(400).json({ message: 'No withdrawal found with the provided ID' });
+        }
+    } catch (error) {
+        console.error("Error deleting withdrawal: ", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+
+exports.getAllPendingWithdrawals = async (req, res) => {
+    try {
+        // Fetch pending or processing withdrawals from all sources
+        const bankWithdrawals = await BankWithdrawal.find({ status: { $in: ['pending', 'processing'] } });
+        const paypalWithdrawals = await PaypalWithdrawal.find({ status: { $in: ['pending', 'processing'] } });
+        const mobileMoneyWithdrawals = await MobileMoneyWithdrawal.find({ status: { $in: ['pending', 'processing'] } });
+
+        // Combine all pending or processing withdrawals
+        const combinedWithdrawals = [...bankWithdrawals, ...paypalWithdrawals, ...mobileMoneyWithdrawals]
+            .sort((a, b) => b.createdAt - a.createdAt); // Sort by date in descending order
+
+        res.json(combinedWithdrawals);
+    } catch (error) {
+        console.error("Error fetching pending/processing withdrawal data: ", error);
+        res.status(500).json({ message: error.message });
+    }
+};

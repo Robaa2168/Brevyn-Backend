@@ -38,16 +38,27 @@ exports.getUserStats = async (req, res) => {
         // Sum all pending or processing withdrawals
         const totalPendingWithdrawals = pendingOrProcessingBankWithdrawals + pendingOrProcessingPaypalWithdrawals + pendingOrProcessingMobileMoneyWithdrawals;
 
+        // Sum the amounts of successful deposits
+        const successfulDeposits = await Deposit.aggregate([
+            { $match: { isSuccess: true } }, // Adjusted to match successful deposits
+            { $group: { _id: null, totalDeposits: { $sum: '$amount' } } }
+        ]);
+
+        const totalSuccessfulDeposits = successfulDeposits.length > 0 ? successfulDeposits[0].totalDeposits : 0;
+
         res.status(200).json({
             totalUsers,
             unverifiedUsers,
             bannedUsers,
-            totalPendingWithdrawals
+            totalPendingWithdrawals,
+            totalSuccessfulDeposits
         });
     } catch (error) {
         res.status(500).send(error.message);
     }
 };
+
+
 
 
 exports.getUsers = async (req, res) => {

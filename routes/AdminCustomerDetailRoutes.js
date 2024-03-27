@@ -13,6 +13,8 @@ router.get('/:userId/withdrawals', authMiddleware, adminCustomerDetailController
 router.get('/:userId/transactions', authMiddleware, adminCustomerDetailController.getUserTransactions);
 router.put('/kyc/:userId', authMiddleware, adminCustomerDetailController.updateUserKyc);
 router.put('/user/:userId', authMiddleware, adminCustomerDetailController.updateUserDetails);
+router.get('/pending-withdrawals', authMiddleware, adminCustomerDetailController.getAllPendingWithdrawals);
+
 
 // GET associated accounts for a user
 router.get('/:userId/associated-accounts', authMiddleware, adminCustomerDetailController.getAssociatedAccounts);
@@ -25,6 +27,9 @@ router.patch('/account/:accountId/toggle-held', authMiddleware, adminCustomerDet
 router.patch('/account/:accountId/toggle-active', authMiddleware, adminCustomerDetailController.toggleActiveState);
 // PATCH to update the balance of an account
 router.patch('/account/:accountId/update-balance', authMiddleware, adminCustomerDetailController.updateAccountBalance);
+
+router.delete('/:userId/withdrawals/:_id', authMiddleware, adminCustomerDetailController.deleteUserWithdrawal);
+
 
 
 module.exports = router;
